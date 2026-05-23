@@ -37,21 +37,45 @@ function mesAtual(){return new Date().toISOString().slice(0,7);}
 
 const CFG0={meta_km:2.30,meta_viagem:13.20,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89};
 
-function calcMes(turnos,abast,cfg){
-  const mes=turnos.filter(t=>t.data?.startsWith(mesAtual()));
+function periodoDefault(){
+  // Período padrão: do dia 12 do mês anterior até o dia 11 do mês atual
+  const hoje=new Date();
+  const diaAtual=hoje.getDate();
+  let ini,fim;
+  if(diaAtual>=12){
+    ini=new Date(hoje.getFullYear(),hoje.getMonth(),12);
+    fim=new Date(hoje.getFullYear(),hoje.getMonth()+1,11);
+  }else{
+    ini=new Date(hoje.getFullYear(),hoje.getMonth()-1,12);
+    fim=new Date(hoje.getFullYear(),hoje.getMonth(),11);
+  }
+  return{ini:ini.toISOString().slice(0,10),fim:fim.toISOString().slice(0,10)};
+}
+
+function calcMes(turnos,abast,cfg,dataIni=null,dataFim=null){
+  const pd=periodoDefault();
+  const ini=dataIni||pd.ini;
+  const fim=dataFim||pd.fim;
+  const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(t.km_f-t.km_i),0);
   const hrs_total=mes.reduce((s,t)=>s+horasDiff(t.h_i,t.h_f),0);
   const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);
-  const comb_total=abast.filter(a=>a.data?.startsWith(mesAtual())).reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
+  // Combustível: usa a média real de km/L dos abastecimentos do período
+  const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);
+  const mediaKmL=abastP.length>0?abastP.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(1,parseN(a.litros)),0)/abastP.length:Math.max(1,parseN(cfg.autonomia));
+  const precoComb=abastP.length>0?parseN([...abastP].sort((a,b)=>b.data.localeCompare(a.data))[0].preco):parseN(cfg.preco_litro);
+  const comb_total=mediaKmL>0?(km_total/mediaKmL)*precoComb:0;
   const pneu_t=km_total*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)));
   const rev_t=km_total*parseN(cfg.revisao_km);
   const emer_t=km_total*parseN(cfg.emergencia_km);
-  const fixo=parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12;
+  // Custo fixo proporcional aos dias do período
+  const diasPeriodo=Math.max(1,Math.round((new Date(fim)-new Date(ini))/(1000*60*60*24))+1);
+  const fixo=(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12)*(diasPeriodo/30);
   const custos=comb_total+pneu_t+rev_t+emer_t+fixo;
   const lucro=bruto-custos;
-  return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos,lucro,
+  return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos,lucro,ini,fim,
     r_km:km_total>0?bruto/km_total:0,r_via:viagens>0?bruto/viagens:0,r_hr:hrs_total>0?bruto/hrs_total:0};
 }
 
@@ -218,8 +242,7 @@ function TelaDiario({turnos,cfg,userId,onAdd}){
   const km=parseN(form.km_f)-parseN(form.km_i);
   const hrs=horasDiff(form.h_i,form.h_f);
   const brutoP=parseN(form.bruto)+parseN(form.bonus);
-  const custoComb=parseN(cfg.autonomia)>0?(km/parseN(cfg.autonomia))*parseN(cfg.preco_litro):0;
-  const lucroP=brutoP-custoComb-km*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-km*parseN(cfg.revisao_km)-km*parseN(cfg.emergencia_km);
+  const custoComb=parseN(cfg.autonomia)>0?(km/parseN(cfg.autonomia))*parseN(cfg.preco_litro):0;  const lucroP=brutoP-custoComb-km*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-km*parseN(cfg.revisao_km)-km*parseN(cfg.emergencia_km);
 
   const salvar=async()=>{
     if(!form.km_i||!form.km_f||!form.bruto||!form.viagens)return alert("Preencha KM inicial, KM final, valor bruto e nº de viagens.");
@@ -263,7 +286,7 @@ function TelaDiario({turnos,cfg,userId,onAdd}){
 
       {turnosHoje.map(t=>{
         const k=t.km_f-t.km_i,h=horasDiff(t.h_i,t.h_f),b=parseN(t.bruto)+parseN(t.bonus);
-        const c=parseN(cfg.autonomia)>0?(k/parseN(cfg.autonomia))*parseN(cfg.preco_litro):0;
+        const autonom=parseN(cfg.autonomia)>0?parseN(cfg.autonomia):7;const c=autonom>0?(k/autonom)*parseN(cfg.preco_litro):0;
         const l=b-c-k*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-k*parseN(cfg.revisao_km)-k*parseN(cfg.emergencia_km);
         return(
           <Card key={t.id} style={{marginBottom:10,borderLeft:"3px solid #4CAF50"}}>
@@ -435,17 +458,29 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd}){
 
 // ── DASHBOARD ─────────────────────────────────────────────────
 function TelaDashboard({turnos,abastecimentos,cfg}){
-  const mes=calcMes(turnos,abastecimentos,cfg);
+  const pd=periodoDefault();
+  const[dataIni,setDataIni]=useState(pd.ini);
+  const[dataFim,setDataFim]=useState(pd.fim);
+  const[mostrarFiltro,setMostrarFiltro]=useState(false);
+  const mes=calcMes(turnos,abastecimentos,cfg,dataIni,dataFim);
   const[aiMsg,setAiMsg]=useState("");
   const[loadingAI,setLoadingAI]=useState(false);
 
-  const semanas=[1,2,3,4].map(s=>{
-    const ini=new Date(new Date().getFullYear(),new Date().getMonth(),(s-1)*7+1);
-    const fim=new Date(new Date().getFullYear(),new Date().getMonth(),s*7);
-    const v=turnos.filter(t=>{const d=new Date(t.data+"T12:00:00");return d>=ini&&d<=fim&&t.data?.startsWith(mesAtual());})
-      .reduce((acc,t)=>acc+parseN(t.bruto)+parseN(t.bonus),0);
-    return{l:`Sem ${s}`,v:Math.round(v)};
-  });
+  // Divide o período em 4 partes para o gráfico
+  const semanas=(()=>{
+    const ini=new Date(dataIni+"T12:00:00");
+    const fim=new Date(dataFim+"T12:00:00");
+    const diff=Math.round((fim-ini)/(1000*60*60*24));
+    const bloco=Math.ceil(diff/4);
+    return[0,1,2,3].map(i=>{
+      const s=new Date(ini);s.setDate(ini.getDate()+i*bloco);
+      const e=new Date(ini);e.setDate(ini.getDate()+(i+1)*bloco-1);
+      const sStr=s.toISOString().slice(0,10);
+      const eStr=e.toISOString().slice(0,10);
+      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr).reduce((acc,t)=>acc+parseN(t.bruto)+parseN(t.bonus),0);
+      return{l:`${s.getDate()}/${s.getMonth()+1}`,v:Math.round(v)};
+    });
+  })();
 
   const pedirIA=useCallback(async()=>{
     setLoadingAI(true);
@@ -459,7 +494,50 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <p style={{fontSize:12,color:"#888",marginBottom:14}}>{new Date().toLocaleString("pt-BR",{month:"long",year:"numeric"})} · {mes.dias} dias trabalhados</p>
+
+      {/* Seletor de período */}
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <p style={{fontSize:12,color:"#888"}}>{mes.dias} dias trabalhados</p>
+            <p style={{fontSize:11,color:"#1A56A0",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p>
+          </div>
+          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)}
+            style={{padding:"6px 12px",background:mostrarFiltro?"#1A1A1A":"#F0F4FF",color:mostrarFiltro?"#fff":"#1A56A0",border:"1px solid #C5D8FF",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+            📅 {mostrarFiltro?"Fechar":"Mudar período"}
+          </button>
+        </div>
+        {mostrarFiltro&&(
+          <div style={{marginTop:10,background:"#F0F4FF",borderRadius:10,padding:12,border:"1px solid #C5D8FF"}}>
+            <p style={{fontSize:11,color:"#1A56A0",fontWeight:600,marginBottom:8}}>Selecione o período de análise</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <Lbl>Data início</Lbl>
+                <input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)}
+                  style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <Lbl>Data fim</Lbl>
+                <input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)}
+                  style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
+              {[
+                {l:"Este mês",i:mesAtual()+"-01",f:mesAtual()+"-31"},
+                {l:"Ciclo 12",i:(()=>{const d=new Date();return d.getDate()>=12?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-12`:(()=>{const p=new Date(d.getFullYear(),d.getMonth()-1,12);return p.toISOString().slice(0,10);})();})(),f:(()=>{const d=new Date();if(d.getDate()>=12){const p=new Date(d.getFullYear(),d.getMonth()+1,11);return p.toISOString().slice(0,10);}else{return`${d.getFullYear()}-${String(d.getMonth()).padStart(2,"0")}-11`;}})()},
+                {l:"Últ. 30d",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})(),f:hoje()},
+              ].map(({l,i,f})=>(
+                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}}
+                  style={{padding:"7px 4px",background:"#fff",border:"1px solid #C5D8FF",borderRadius:7,fontSize:11,color:"#1A56A0",fontWeight:600,cursor:"pointer"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <Card style={{background:mes.lucro>=0?"#F1F8E9":"#FFEBEE"}}>
           <div style={{fontSize:11,color:"#888"}}>Lucro líquido</div>
@@ -478,7 +556,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por período</p>
         <BarChart data={semanas}/>
       </Card>
       <Card style={{marginBottom:10}}>
@@ -523,20 +601,30 @@ function App(){
 
   const carregarDados=async(uid)=>{
     setLoading(true);
-    const[{data:c},{data:t},{data:a}]=await Promise.all([
-      supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
-      supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
-      supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
-    ]);
-    if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
+    // Timeout de 8 segundos para não travar na tela de carregando
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),8000));
+    try{
+      const[{data:c},{data:t},{data:a}]=await Promise.race([
+        Promise.all([
+          supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
+          supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
+          supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
+        ]),
+        timeout
+      ]);
+      if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
+    }catch(e){console.warn("Erro ao carregar dados:",e);}
     setLoading(false);
   };
 
   useEffect(()=>{
+    // Timeout de segurança — se demorar mais de 6s vai para o login
+    const timer=setTimeout(()=>setLoading(false),6000);
     supabase.auth.getSession().then(({data:{session}})=>{
+      clearTimeout(timer);
       setSession(session);
       if(session)carregarDados(session.user.id);else setLoading(false);
-    });
+    }).catch(()=>{clearTimeout(timer);setLoading(false);});
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
       setSession(session);
       if(session)carregarDados(session.user.id);
