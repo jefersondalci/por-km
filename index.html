@@ -84,7 +84,6 @@ function periodoDefault() {
   return { ini: ini.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) };
 }
 
-// Movi a função para cá para que todas as telas consigam lê-la sem dar erro de definição
 function calcMes(turnos, abast, cfg, dataIni = null, dataFim = null) {
   const pd = periodoDefault();
   const ini = dataIni || pd.ini;
@@ -96,7 +95,7 @@ function calcMes(turnos, abast, cfg, dataIni = null, dataFim = null) {
   const km_total = mes.reduce((s, t) => s + (t.km_f - t.km_i), 0);
   const hrs_total = mes.reduce((s, t) => s + horasDiff(t.h_i, t.h_f), 0);
   const bruto = mes.reduce((s, t) => s + parseN(t.bruto) + parseN(t.bonus), 0);
-  const viagens = mes.reduce((s, t) => s + parseN(t.viagens), 0);
+  const viajes = mes.reduce((s, t) => s + parseN(t.viagens), 0);
   
   const abastP = abast.filter(a => a.data && a.data >= ini && a.data <= fim);
   const mediaKmL = abastP.length > 0 
@@ -119,9 +118,9 @@ function calcMes(turnos, abast, cfg, dataIni = null, dataFim = null) {
   const lucro = bruto - custos;
   
   return {
-    dias, km_total, hrs_total, bruto, viagens, comb_total, pneu_t, rev_t, emer_t, fixo, custos, lucro, ini, fim,
+    dias, km_total, hrs_total, bruto, viagens: viajes, comb_total, pneu_t, rev_t, emer_t, fixo, custos, lucro, ini, fim,
     r_km: km_total > 0 ? bruto / km_total : 0,
-    r_via: viagens > 0 ? bruto / viagens : 0,
+    r_via: viajes > 0 ? bruto / viajes : 0,
     r_hr: hrs_total > 0 ? bruto / hrs_total : 0
   };
 }
@@ -183,7 +182,7 @@ function IEBar({ label, real, meta, valor }) {
   const ok = ie >= 1;
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyTopic: "space-between", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <span style={{ fontSize: 12, color: "#555" }}>{label} <b style={{ color: "#222" }}>{valor}</b></span>
         <Badge ok={ok}>IE {fmt(ie)} {ok ? "✓" : "✗"}</Badge>
       </div>
@@ -370,7 +369,7 @@ function FormTurno({ inicial, onSalvar, onCancelar, loading, titulo }) {
         <Inp label="Hora início" value={form.h_i} onChange={v => setForm(f => ({ ...f, h_i: v }))} placeholder="08:00" />
         <Inp label="Hora fim" value={form.h_f} onChange={v => setForm(f => ({ ...f, h_f: v }))} placeholder="14:00" />
         <Inp label="Valor bruto (R$)" type="number" value={form.bruto} onChange={v => setForm(f => ({ ...f, bruto: v }))} placeholder="120.00" />
-        <Inp label="Nº de viagens" type="number" value={form.viagens} onChange={v => setForm(f => ({ ...f, viajes: v, viagens: v }))} placeholder="9" />
+        <Inp label="Nº de viagens" type="number" value={form.viagens} onChange={v => setForm(f => ({ ...f, viagens: v }))} placeholder="9" />
       </div>
       <Inp label="Bônus Uber/99 (R$)" type="number" value={form.bonus} onChange={v => setForm(f => ({ ...f, bonus: v }))} placeholder="0" />
 
@@ -460,7 +459,7 @@ function TelaDiario({ turnos, cfg, userId, onAdd, onUpdate }) {
   const pedirIA = useCallback(async () => {
     if (!turnosHoje.length) return;
     setLoadingAI(true);
-    setAiMsg("Conexão direta indisponível no navegador por segurança de CORS.");
+    setAiMsg("Análise indisponível no momento.");
     setLoadingAI(false);
   }, [turnosHoje]);
 
@@ -796,6 +795,54 @@ function TelaDashboard({ turnos, abastecimentos, cfg }) {
   );
 }
 
+// ── TELA: ADMINISTRAÇÃO GERENCIAL ─────────────────────────────
+function TelaAdmin() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const carregarUsuarios = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("usuarios_controle").select("*").order("nome", { ascending: true });
+    if (data) setUsuarios(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    carregarUsuarios();
+  }, []);
+
+  const alternarStatus = async (user) => {
+    const novoStatus = !user.ativo;
+    const { error } = await supabase.from("usuarios_controle").update({ ativo: novoStatus }).eq("id", user.id);
+    if (!error) {
+      setUsuarios(p => p.map(u => u.id === user.id ? { ...u, ativo: novoStatus } : u));
+    } else {
+      alert("Erro ao alterar status: " + error.message);
+    }
+  };
+
+  if (loading) return <div style={{ textAlign: "center", padding: 20, fontSize: 13, color: "#666" }}>Carregando usuários...</div>;
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#1A56A0", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Painel de Controle — Usuários</p>
+      {usuarios.length === 0 && <p style={{ fontSize: 13, color: "#999", textAlign: "center", padding: 20 }}>Nenhum usuário encontrado.</p>}
+      {usuarios.map(u => (
+        <Card key={u.id} style={{ marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{u.nome || "Sem nome"} {u.admin && <span style={{ fontSize: 9, background: "#E0F7FA", color: "#006064", padding: "2px 4px", borderRadius: 4, marginLeft: 4 }}>ADMIN</span>}</div>
+            <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{u.email}</div>
+          </div>
+          <button onClick={() => alternarStatus(u)}
+            style={{ padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: u.ativo ? "#E8F5E9" : "#FFEBEE", color: u.ativo ? "#2E7D32" : "#C62828" }}>
+            {u.ativo ? "✓ Ativo" : "✕ Bloqueado"}
+          </button>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 function TelaAguardando({ onSair }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: 32, textAlign: "center" }}>
@@ -820,19 +867,31 @@ function App() {
   const carregarDados = async (uid) => {
     setLoading(true);
     try {
-      const [{ data: c }, { data: t }, { data: a }] = await Promise.all([
-        supabase.from("configuracoes").select("*").eq("user_id", uid).single(),
+      // 1. Carregar primeiro o perfil de controle de forma segura
+      const { data: ctrl, error: ctrlErr } = await supabase.from("usuarios_controle").select("*").eq("user_id", uid).single();
+      if (ctrl) {
+        setControle(ctrl);
+      } else {
+        // Fallback caso seja o primeiro login e o trigger não tenha rodado
+        setControle({ ativo: true, admin: false });
+      }
+
+      // 2. Tenta carregar os dados de motorista. Se der erro (como registro vazio), não trava o app.
+      const [cRes, tRes, aRes] = await Promise.all([
+        supabase.from("configuracoes").select("*").eq("user_id", uid).maybeSingle(),
         supabase.from("turnos").select("*").eq("user_id", uid).order("data", { ascending: false }),
         supabase.from("abastecimentos").select("*").eq("user_id", uid).order("data", { ascending: false })
       ]);
-      if (c) setCfg(c);
-      if (t) setTurnos(t);
-      if (a) setAbast(a);
-      
-      const { data: ctrl } = await supabase.from("usuarios_controle").select("*").eq("user_id", uid).single();
-      setControle(ctrl || { ativo: true });
+
+      if (cRes.data) setCfg(cRes.data);
+      else setCfg(CFG0); // Se não houver configurações, usa o padrão em memória em vez de estourar erro
+
+      if (tRes.data) setTurnos(tRes.data);
+      if (aRes.data) setAbast(aRes.data);
+
     } catch (e) {
-      console.warn(e);
+      console.warn("Aviso no carregamento:", e);
+      setCfg(CFG0);
     }
     setLoading(false);
   };
@@ -848,8 +907,10 @@ function App() {
   const sair = async () => {
     await supabase.auth.signOut();
     setSession(null);
+    setControle(null);
   };
 
+  // Monta o menu dinamicamente. Se você for Admin, aparece o botão da tela ADM.
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard" },
     { id: "diario", icon: "📋", label: "Diário" },
@@ -857,7 +918,11 @@ function App() {
     { id: "config", icon: "⚙️", label: "Config." }
   ];
 
-  if (loading) return <div style={{ textAlign: "center", padding: 50 }}>Carregando app...</div>;
+  if (controle && controle.admin) {
+    navItems.push({ id: "admin", icon: "👑", label: "Admin" });
+  }
+
+  if (loading) return <div style={{ textAlign: "center", padding: 50, fontFamily: "Arial", color: "#666" }}>Carregando app...</div>;
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", height: "100vh", display: "flex", flexDirection: "column", background: "#FAFAFA" }}>
@@ -867,15 +932,16 @@ function App() {
         <TelaAguardando onSair={sair} />
       ) : (
         <>
-          <div style={{ padding: 14, background: "#FFF", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #E8E8E8" }}>
-            <b>Por km</b>
-            <button onClick={sair} style={{ background: "none", border: "none", color: "#888", cursor: "pointer" }}>Sair</button>
+          <div style={{ padding: 14, background: "#FFF", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #E8E8E8", alignItems: "center" }}>
+            <b style={{ color: "#111" }}>Por km</b>
+            <button onClick={sair} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 13 }}>Sair</button>
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {nav === "dashboard" && <TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} />}
             {nav === "diario" && <TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t => setTurnos(p => [t, ...p])} onUpdate={t => setTurnos(p => p.map(x => x.id === t.id ? t : x))} />}
             {nav === "combustivel" && <TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a => setAbast(p => [a, ...p])} onUpdate={a => setAbast(p => p.map(x => x.id === a.id ? a : x))} />}
             {nav === "config" && <TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c => setCfg(c)} />}
+            {nav === "admin" && <TelaAdmin />}
           </div>
           <div style={{ display: "flex", borderTop: "1px solid #E8E8E8", background: "#FFF", flexShrink: 0 }}>
             {navItems.map(n => (
