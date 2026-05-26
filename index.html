@@ -375,7 +375,7 @@ try {
         )}
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <p style={{fontSize:13,fontWeight:600 daytime}}>Hoje, {dataFmt(hoje())}</p>
+          <p style={{fontSize:13,fontWeight:600}}>Hoje, {dataFmt(hoje())}</p>
           <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}}
             style={{padding:"7px 14px",background:"#1A1A1A",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Turno</button>
         </div>
@@ -410,7 +410,7 @@ try {
           </div>
         )}
 
-        {turnAnt = turnosAnt.length>0&&(
+        {turnosAnt.length>0&&(
           <>
             <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
             {turnosAnt.map(t=><CardTurno key={t.id} t={t}/>)}
@@ -556,7 +556,6 @@ try {
     const[dataFim,setDataFim]=useState(pd.fim);
     const[mostrarFiltro,setMostrarFiltro]=useState(false);
     
-    // Agora o script reconhece com segurança a função declarada acima
     const mes=calcMes(turnos,abastecimentos,cfg,dataIni,dataFim);
 
     return(
@@ -689,7 +688,7 @@ try {
                   <button onClick={sair} style={{background:"none",border:"none",color:"#888"}}>Sair</button>
                 </div>
                 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                  {navNavItems = nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
+                  {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
                   {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))}/>}
                   {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))}/>}
                   {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
