@@ -26,7 +26,6 @@ const supabase = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk"
 );
 
-// ── CONFIGURAÇÃO PADRÃO ───────────────────────────────────────
 const CFG0 = {
   meta_km: 2.30,
   meta_viagem: 13.20,
@@ -42,7 +41,6 @@ const CFG0 = {
   preco_litro: 4.89
 };
 
-// ── FUNÇÕES UTILITÁRIAS GERAIS ────────────────────────────────
 function fmt(n, dec = 2) {
   if (n == null || isNaN(n)) return "—";
   return Number(n).toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -125,7 +123,6 @@ function calcMes(turnos, abast, cfg, dataIni = null, dataFim = null) {
   };
 }
 
-// ── COMPONENTES DE INTERFACE BASE ─────────────────────────────
 const Card = ({ children, style }) => (
   <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8E8E8", padding: 14, ...style }}>{children}</div>
 );
@@ -193,7 +190,6 @@ function IEBar({ label, real, meta, valor }) {
   );
 }
 
-// ── TELA: AUTENTICAÇÃO ────────────────────────────────────────
 function TelaAuth({ onLogado }) {
   const [modo, setModo] = useState("login");
   const [nome, setNome] = useState("");
@@ -275,7 +271,6 @@ function TelaAuth({ onLogado }) {
   );
 }
 
-// ── TELA: CONFIGURAÇÕES ───────────────────────────────────────
 function TelaConfig({ cfg, userId, onSalvo }) {
   const [form, setForm] = useState({ ...CFG0, ...cfg });
   const [loading, setLoading] = useState(false);
@@ -352,7 +347,6 @@ function TelaConfig({ cfg, userId, onSalvo }) {
   );
 }
 
-// ── COMPONENTE: FORMULÁRIO DE TURNO ───────────────────────────
 function FormTurno({ inicial, onSalvar, onCancelar, loading, titulo }) {
   const [form, setForm] = useState(inicial);
   const km = parseN(form.km_f) - parseN(form.km_i);
@@ -398,7 +392,6 @@ function FormTurno({ inicial, onSalvar, onCancelar, loading, titulo }) {
   );
 }
 
-// ── TELA: DIÁRIO ──────────────────────────────────────────────
 function TelaDiario({ turnos, cfg, userId, onAdd, onUpdate }) {
   const [mostrar, setMostrar] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -529,7 +522,7 @@ function TelaDiario({ turnos, cfg, userId, onAdd, onUpdate }) {
       </div>
 
       {mostrar && <FormTurno titulo={`Novo turno — ${turnosHoje.length + 1}º`} inicial={{ data: hoje(), num: turnosHoje.length + 1, km_i: "", km_f: "", h_i: "", h_f: "", bruto: "", viagens: "", bonus: "0" }} onSalvar={salvarNovo} onCancelar={() => setMostrar(false)} loading={loading} />}
-      {editando && <FormTurno titulo={`Editar turno — ${editando.num}º (${dataFmt(editando.data)})`} inicial={{ data: editando.data, num: editando.num, km_i: editando.km_i, km_f: editando.km_f, h_i: editando.h_i || "", h_f: editando.h_f || "", bruto: editando.bruto, viagens: editando.viagens, bonus: editando.bonus || "0" }} onSalvar={salvarEdicao} onCancelar={() => setEditando(null)} loading={loading} />}
+      {editando && <FormTurno titulo={`Editar turno — ${editando.num}º (${dataFmt(editando.data)})`} inicial={{ data: editando.data, num: editando.num, km_i: editando.km_i, km_f: editando.km_f, h_i: editando.h_i || "", h_f: editando.h_f || "", bruto: editando.bruto, viajes: editando.viagens, bonus: editando.bonus || "0" }} onSalvar={salvarEdicao} onCancelar={() => setEditando(null)} loading={loading} />}
 
       {turnosHoje.length === 0 && !mostrar && !editando && (
         <div style={{ textAlign: "center", padding: "24px 20px", color: "#AAA", background: "#F9F9F9", borderRadius: 10, marginBottom: 14 }}>
@@ -561,7 +554,6 @@ function TelaDiario({ turnos, cfg, userId, onAdd, onUpdate }) {
   );
 }
 
-// ── TELA: COMBUSTÍVEL ─────────────────────────────────────────
 function TelaCombustivel({ abastecimentos, cfg, userId, onAdd, onUpdate }) {
   const [form, setForm] = useState({ data: hoje(), tipo: "Gasolina", km_rod: "", litros: "", preco: "" });
   const [mostrar, setMostrar] = useState(false);
@@ -716,7 +708,6 @@ function TelaCombustivel({ abastecimentos, cfg, userId, onAdd, onUpdate }) {
   );
 }
 
-// ── TELA: DASHBOARD ───────────────────────────────────────────
 function TelaDashboard({ turnos, abastecimentos, cfg }) {
   const pd = periodoDefault();
   const [dataIni, setDataIni] = useState(pd.ini);
@@ -795,7 +786,6 @@ function TelaDashboard({ turnos, abastecimentos, cfg }) {
   );
 }
 
-// ── TELA: ADMINISTRAÇÃO GERENCIAL ─────────────────────────────
 function TelaAdmin() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -854,7 +844,6 @@ function TelaAguardando({ onSair }) {
   );
 }
 
-// ── COMPONENTE PRINCIPAL (APP) ───────────────────────────────
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -867,30 +856,27 @@ function App() {
   const carregarDados = async (uid) => {
     setLoading(true);
     try {
-      // 1. Carregar primeiro o perfil de controle de forma segura
-      const { data: ctrl, error: ctrlErr } = await supabase.from("usuarios_controle").select("*").eq("user_id", uid).single();
+      // 1. Puxa o controle de acesso de forma direta e limpa
+      const { data: ctrl } = await supabase.from("usuarios_controle").select("*").eq("user_id", uid).maybeSingle();
       if (ctrl) {
         setControle(ctrl);
       } else {
-        // Fallback caso seja o primeiro login e o trigger não tenha rodado
         setControle({ ativo: true, admin: false });
       }
 
-      // 2. Tenta carregar os dados de motorista. Se der erro (como registro vazio), não trava o app.
-      const [cRes, tRes, aRes] = await Promise.all([
-        supabase.from("configuracoes").select("*").eq("user_id", uid).maybeSingle(),
-        supabase.from("turnos").select("*").eq("user_id", uid).order("data", { ascending: false }),
-        supabase.from("abastecimentos").select("*").eq("user_id", uid).order("data", { ascending: false })
-      ]);
+      // 2. Busca as tabelas de motorista individualmente sem correr risco de timeout ou travar por falta de dados
+      const { data: cData } = await supabase.from("configuracoes").select("*").eq("user_id", uid).maybeSingle();
+      if (cData) setCfg(cData);
+      else setCfg(CFG0);
 
-      if (cRes.data) setCfg(cRes.data);
-      else setCfg(CFG0); // Se não houver configurações, usa o padrão em memória em vez de estourar erro
+      const { data: tData } = await supabase.from("turnos").select("*").eq("user_id", uid).order("data", { ascending: false });
+      if (tData) setTurnos(tData);
 
-      if (tRes.data) setTurnos(tRes.data);
-      if (aRes.data) setAbast(aRes.data);
+      const { data: aData } = await supabase.from("abastecimentos").select("*").eq("user_id", uid).order("data", { ascending: false });
+      if (aData) setAbast(aData);
 
     } catch (e) {
-      console.warn("Aviso no carregamento:", e);
+      console.warn("Aviso ao carregar banco:", e);
       setCfg(CFG0);
     }
     setLoading(false);
@@ -910,7 +896,6 @@ function App() {
     setControle(null);
   };
 
-  // Monta o menu dinamicamente. Se você for Admin, aparece o botão da tela ADM.
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard" },
     { id: "diario", icon: "📋", label: "Diário" },
