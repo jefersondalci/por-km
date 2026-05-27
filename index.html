@@ -855,28 +855,22 @@ function App(){
 
   const carregarDados=async(uid)=>{
     setLoading(true);
-    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),8000));
     try{
-      const[[{data:c},{data:t},{data:a}],ctrlRes]=await Promise.race([
-        Promise.all([
-          Promise.all([
-            supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
-            supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
-            supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
-          ]),
-          supabase.from("usuarios_controle").select("*").eq("user_id",uid).single().then(r=>r.data),
-        ]),
-        timeout
-      ]);
-      if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
-      console.log("controle carregado:",ctrlRes);
-      setControle(ctrlRes||null);
-    }catch(e){
-      console.warn("Erro ao carregar:",e);
-      // Tenta carregar o controle separadamente se falhou
+      // Carrega controle PRIMEIRO — é o mais importante
       const{data:ctrl}=await supabase.from("usuarios_controle").select("*").eq("user_id",uid).single();
-      console.log("controle (retry):",ctrl);
-      if(ctrl)setControle(ctrl);
+      setControle(ctrl||null);
+
+      // Depois carrega o resto
+      const[{data:c},{data:t},{data:a}]=await Promise.all([
+        supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
+        supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
+        supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
+      ]);
+      if(c)setCfg(c);
+      if(t)setTurnos(t);
+      if(a)setAbast(a);
+    }catch(e){
+      console.warn("Erro ao carregar dados:",e);
     }
     setLoading(false);
   };
