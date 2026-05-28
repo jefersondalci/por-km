@@ -483,6 +483,43 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate}){
   );
 }
 
+// ── FORM ABASTECIMENTO — fora do componente para não recriar ──
+function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
+  const kmlF=parseN(dados.litros)>0?parseN(dados.km_rod)/parseN(dados.litros):0;
+  return(
+    <Card style={{border:"1px dashed #CCC",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:8}}>{titulo}</p>
+      <Lbl>Tipo</Lbl>
+      <div style={{display:"flex",border:"1px solid #DDD",borderRadius:8,overflow:"hidden",marginBottom:4}}>
+        {["Gasolina","Álcool"].map(t=>(
+          <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}
+            style={{flex:1,padding:10,border:"none",cursor:"pointer",fontSize:13,background:dados.tipo===t?"#1A1A1A":"#FFF",color:dados.tipo===t?"#FFF":"#555",fontWeight:dados.tipo===t?600:400}}>
+            {t==="Gasolina"?"⛽ Gasolina":"🌿 Álcool"}
+          </button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <Inp label="Data" type="date" value={dados.data} onChange={v=>setDados(f=>({...f,data:v}))}/>
+        <Inp label="Preço/litro" type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/>
+        <Inp label="Litros" type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40.0"/>
+        <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
+      </div>
+      {kmlF>0&&(
+        <div style={{marginTop:10,background:"#E3F2FD",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+          {[["km/L",fmt(kmlF)],["R$/km","R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#666"}}>{l}</div></div>
+          ))}
+        </div>
+      )}
+      <p style={{fontSize:11,color:"#999",textAlign:"center",marginTop:8,fontStyle:"italic"}}>km/L = km rodado ÷ litros</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
+        <Btn sec onClick={onCancelar}>Cancelar</Btn>
+        <Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
+      </div>
+    </Card>
+  );
+}
+
 // ── COMBUSTÍVEL ────────────────────────────────────────────────
 function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
@@ -510,41 +547,6 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
     const{data,error}=await supabase.from("abastecimentos").update(upd).eq("id",editando.id).select().single();
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
-  };
-  const FormAbast=({dados,setDados,onSalvar,onCancelar,titulo})=>{
-    const kmlF=parseN(dados.litros)>0?parseN(dados.km_rod)/parseN(dados.litros):0;
-    return(
-      <Card style={{border:"1px dashed #CCC",marginBottom:14}}>
-        <p style={{fontSize:13,fontWeight:600,marginBottom:8}}>{titulo}</p>
-        <Lbl>Tipo</Lbl>
-        <div style={{display:"flex",border:"1px solid #DDD",borderRadius:8,overflow:"hidden",marginBottom:4}}>
-          {["Gasolina","Álcool"].map(t=>(
-            <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}
-              style={{flex:1,padding:10,border:"none",cursor:"pointer",fontSize:13,background:dados.tipo===t?"#1A1A1A":"#FFF",color:dados.tipo===t?"#FFF":"#555",fontWeight:dados.tipo===t?600:400}}>
-              {t==="Gasolina"?"⛽ Gasolina":"🌿 Álcool"}
-            </button>
-          ))}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <Inp label="Data" type="date" value={dados.data} onChange={v=>setDados(f=>({...f,data:v}))}/>
-          <Inp label="Preço/litro" type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/>
-          <Inp label="Litros" type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40.0"/>
-          <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
-        </div>
-        {kmlF>0&&(
-          <div style={{marginTop:10,background:"#E3F2FD",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-            {[["km/L",fmt(kmlF)],["R$/km","R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
-              <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#666"}}>{l}</div></div>
-            ))}
-          </div>
-        )}
-        <p style={{fontSize:11,color:"#999",textAlign:"center",marginTop:8,fontStyle:"italic"}}>km/L = km rodado ÷ litros</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
-          <Btn sec onClick={onCancelar}>Cancelar</Btn>
-          <Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
-        </div>
-      </Card>
-    );
   };
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
