@@ -109,10 +109,28 @@ const Lbl=({children})=><div style={{fontSize:11,color:"#888",marginBottom:4,mar
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
   <div style={style}>
     {label&&<Lbl>{label}</Lbl>}
-    <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 12px",fontSize:14,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
+    <input
+      type={type==="number"?"text":type}
+      inputMode={type==="number"?"decimal":undefined}
+      value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+      style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
   </div>
 );
+// Input de hora com ":" automático — digita 0800 vira 08:00
+const InpHora=({label,value,onChange})=>{
+  const handle=(e)=>{
+    let v=e.target.value.replace(/\D/g,"").slice(0,4);
+    if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);
+    onChange(v);
+  };
+  return(
+    <div>
+      {label&&<Lbl>{label}</Lbl>}
+      <input type="text" inputMode="numeric" value={value??""} onChange={handle} placeholder="08:00" maxLength={5}
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
+    </div>
+  );
+};
 const Btn=({children,onClick,sec,disabled,style})=>(
   <button onClick={onClick} disabled={disabled}
     style={{padding:"11px 16px",borderRadius:8,border:sec?"1px solid #DDD":"none",background:sec?"#F5F5F5":"#1A1A1A",
@@ -292,8 +310,8 @@ function FormTurno({inicial,onSalvar,onCancelar,loading,titulo}){
         <Inp label="Nº do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
         <Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))} placeholder="75937"/>
         <Inp label="KM final" type="number" value={form.km_f} onChange={v=>setForm(f=>({...f,km_f:v}))} placeholder="76031"/>
-        <Inp label="Hora início" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))} placeholder="08:00"/>
-        <Inp label="Hora fim" value={form.h_f} onChange={v=>setForm(f=>({...f,h_f:v}))} placeholder="14:00"/>
+        <InpHora label="Hora início" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
+        <InpHora label="Hora fim" value={form.h_f} onChange={v=>setForm(f=>({...f,h_f:v}))}/>
         <Inp label="Valor bruto (R$)" type="number" value={form.bruto} onChange={v=>setForm(f=>({...f,bruto:v}))} placeholder="120.00"/>
         <Inp label="Nº de viagens" type="number" value={form.viagens} onChange={v=>setForm(f=>({...f,viagens:v}))} placeholder="9"/>
       </div>
