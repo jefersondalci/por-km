@@ -700,27 +700,99 @@ function TelaComparativo({turnos,cfg}){
           })}
         </div>
         <div style={{display:"flex",gap:16,marginTop:10,justifyContent:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#1565C0",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>Sem {semA+1}</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#4CAF50",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>Sem {semB+1}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#1565C0",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semA]?.label||"Sem A"}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#4CAF50",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semB]?.label||"Sem B"}</span></div>
         </div>
       </Card>
 
-      {/* Resumo comparativo */}
-      {[["R$/km","r_km"],["R$/hora","r_hr"],["Bruto","bruto"]].map(([lbl,key])=>{
-        const mA=diasA.length>0?diasA.reduce((s,d)=>s+d[key],0)/diasA.length:0;
-        const mB=diasB.length>0?diasB.reduce((s,d)=>s+d[key],0)/diasB.length:0;
+      {/* Tabela dia a dia por métrica selecionada */}
+      <Card style={{marginBottom:14}}>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>
+          Detalhamento por dia — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto total"}
+        </p>
+        {/* Cabeçalho */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#888"}}>Dia</div>
+          <div style={{fontSize:10,fontWeight:700,color:"#1565C0",textAlign:"center"}}>Sem A</div>
+          <div style={{fontSize:10,fontWeight:700,color:"#4CAF50",textAlign:"center"}}>Sem B</div>
+          <div style={{fontSize:10,fontWeight:700,color:"#888",textAlign:"center"}}>Dif.</div>
+        </div>
+        {todos.map(ds=>{
+          const dA=diasA.find(d=>d.ds===ds);
+          const dB=diasB.find(d=>d.ds===ds);
+          const vA=dA?dA[metrica]:null;
+          const vB=dB?dB[metrica]:null;
+          const diff=vA&&vA>0&&vB!=null?((vB-vA)/vA)*100:null;
+          const temDado=vA||vB;
+          if(!temDado)return null;
+          return(
+            <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4,padding:"7px 0",borderBottom:"1px solid #F9F9F9",alignItems:"center"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#333"}}>{ds}</div>
+              <div style={{textAlign:"center"}}>
+                {vA>0
+                  ?<span style={{fontSize:12,fontWeight:700,color:"#1565C0"}}>{metrica==="bruto"?fmtR(vA):fmtR(vA)}</span>
+                  :<span style={{fontSize:12,color:"#CCC"}}>—</span>}
+              </div>
+              <div style={{textAlign:"center"}}>
+                {vB>0
+                  ?<span style={{fontSize:12,fontWeight:700,color:"#4CAF50"}}>{fmtR(vB)}</span>
+                  :<span style={{fontSize:12,color:"#CCC"}}>—</span>}
+              </div>
+              <div style={{textAlign:"center"}}>
+                {diff!=null
+                  ?<span style={{fontSize:11,fontWeight:700,padding:"2px 5px",borderRadius:4,background:diff>=0?"#E8F5E9":"#FFEBEE",color:diff>=0?"#2E7D32":"#C62828"}}>
+                    {diff>=0?"+":""}{fmt(diff,1)}%
+                  </span>
+                  :<span style={{fontSize:11,color:"#CCC"}}>—</span>}
+              </div>
+            </div>
+          );
+        })}
+        {/* Totais */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#555"}}>Média</div>
+          <div style={{textAlign:"center"}}>
+            <span style={{fontSize:12,fontWeight:700,color:"#1565C0"}}>
+              {(()=>{const vals=diasA.filter(d=>d[metrica]>0);return vals.length>0?fmtR(vals.reduce((s,d)=>s+d[metrica],0)/(metrica==="bruto"?1:vals.length)):"—";})()}
+            </span>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <span style={{fontSize:12,fontWeight:700,color:"#4CAF50"}}>
+              {(()=>{const vals=diasB.filter(d=>d[metrica]>0);return vals.length>0?fmtR(vals.reduce((s,d)=>s+d[metrica],0)/(metrica==="bruto"?1:vals.length)):"—";})()}
+            </span>
+          </div>
+          <div style={{textAlign:"center"}}>
+            {(()=>{
+              const mA=diasA.filter(d=>d[metrica]>0);
+              const mB=diasB.filter(d=>d[metrica]>0);
+              if(!mA.length||!mB.length)return<span style={{fontSize:11,color:"#CCC"}}>—</span>;
+              const vA=mA.reduce((s,d)=>s+d[metrica],0)/(metrica==="bruto"?1:mA.length);
+              const vB=mB.reduce((s,d)=>s+d[metrica],0)/(metrica==="bruto"?1:mB.length);
+              const diff=vA>0?((vB-vA)/vA)*100:0;
+              return<span style={{fontSize:11,fontWeight:700,padding:"2px 5px",borderRadius:4,background:diff>=0?"#E8F5E9":"#FFEBEE",color:diff>=0?"#2E7D32":"#C62828"}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>;
+            })()}
+          </div>
+        </div>
+      </Card>
+
+      {/* Resumo geral */}
+      {[["R$/km","r_km"],["R$/hora","r_hr"],["Bruto total","bruto"]].map(([lbl,key])=>{
+        const totA=diasA.reduce((s,d)=>s+d[key],0);
+        const totB=diasB.reduce((s,d)=>s+d[key],0);
+        const mA=diasA.filter(d=>d[key]>0).length>0?totA/(key==="bruto"?1:diasA.filter(d=>d[key]>0).length):0;
+        const mB=diasB.filter(d=>d[key]>0).length>0?totB/(key==="bruto"?1:diasB.filter(d=>d[key]>0).length):0;
         const diff=mA>0?((mB-mA)/mA)*100:0;
         return(
-          <Card key={key} style={{marginBottom:8}}>
+          <Card key={key} style={{marginBottom:8,border:metrica===key?"1px solid #1565C0":"1px solid #E8E8E8"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:13,color:"#555"}}>{lbl}</span>
-              <div style={{display:"flex",gap:16,alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:600,color:metrica===key?"#1565C0":"#555"}}>{lbl}</span>
+              <div style={{display:"flex",gap:14,alignItems:"center"}}>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#1565C0"}}>{key==="bruto"?fmtR(diasA.reduce((s,d)=>s+d.bruto,0)):fmtR(mA)}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#1565C0"}}>{fmtR(mA)}</div>
                   <div style={{fontSize:9,color:"#999"}}>Sem A</div>
                 </div>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#4CAF50"}}>{key==="bruto"?fmtR(diasB.reduce((s,d)=>s+d.bruto,0)):fmtR(mB)}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#4CAF50"}}>{fmtR(mB)}</div>
                   <div style={{fontSize:9,color:"#999"}}>Sem B</div>
                 </div>
                 <Badge ok={diff>=0}>{diff>=0?"+":""}{fmt(diff,1)}%</Badge>
