@@ -154,14 +154,6 @@ function TelaAuth({onLogado}){
   const[nome,setNome]=useState("");const[email,setEmail]=useState("");const[senha,setSenha]=useState("");
   const[loading,setLoading]=useState(false);const[msg,setMsg]=useState("");const[msgTipo,setMsgTipo]=useState("ok");
   const toast=(m,t="ok")=>{setMsg(m);setMsgTipo(t);setTimeout(()=>setMsg(""),4000);};
-  const recuperarSenha=async()=>{
-    if(!email)return toast("Digite seu e-mail primeiro.","erro");
-    setLoading(true);
-    const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
-    if(error)toast("Erro: "+error.message,"erro");
-    else toast("E-mail de recuperação enviado! Verifique sua caixa de entrada. ✅");
-    setLoading(false);
-  };
   const entrar=async()=>{
     setLoading(true);
     const{error}=await supabase.auth.signInWithPassword({email,password:senha});
@@ -197,12 +189,7 @@ function TelaAuth({onLogado}){
         style={{marginTop:12,background:"none",border:"1px solid #DDD",borderRadius:8,padding:11,fontSize:13,color:"#555",cursor:"pointer",width:"100%"}}>
         {modo==="login"?"Criar conta grátis":"Já tenho conta — Entrar"}
       </button>
-      {modo==="login"&&(
-        <button onClick={recuperarSenha} disabled={loading}
-          style={{marginTop:8,background:"none",border:"none",fontSize:12,color:"#AAA",cursor:"pointer",width:"100%",padding:"6px 0"}}>
-          Esqueci minha senha
-        </button>
-      )}
+
     </div>
   );
 }
