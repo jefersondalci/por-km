@@ -162,7 +162,7 @@ function TelaAuth({onLogado}){
     else toast("E-mail de recuperação enviado! Verifique sua caixa de entrada. ✅");
     setLoading(false);
   };
-    if(!email||!senha)return toast("Preencha e-mail e senha.","erro");
+  const entrar=async()=>{
     setLoading(true);
     const{error}=await supabase.auth.signInWithPassword({email,password:senha});
     if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message,"erro");
