@@ -612,21 +612,43 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
 function TelaComparativo({turnos,cfg}){
   const semanas=useMemo(()=>{
     if(!turnos.length)return[];
+    // Agrupa por dia
     const porDia={};
     turnos.forEach(t=>{
+      if(!t.data)return;
       if(!porDia[t.data])porDia[t.data]={bruto:0,km:0,hrs:0,viagens:0};
       porDia[t.data].bruto+=parseN(t.bruto)+parseN(t.bonus);
       porDia[t.data].km+=parseN(t.km_f)-parseN(t.km_i);
       porDia[t.data].hrs+=horasDiff(t.h_i,t.h_f);
       porDia[t.data].viagens+=parseN(t.viagens);
     });
+    // Gera semanas calendário (segunda a domingo) cobrindo todos os dias do BD
     const dias=Object.keys(porDia).sort();
+    if(!dias.length)return[];
+    const primeiro=new Date(dias[0]+"T12:00:00");
+    const ultimo=new Date(dias[dias.length-1]+"T12:00:00");
+    // Vai até a segunda-feira da semana do primeiro dia
+    const diaSem=primeiro.getDay();
+    const inicio=new Date(primeiro);
+    inicio.setDate(primeiro.getDate()-(diaSem===0?6:diaSem-1));
     const sems=[];
-    for(let i=0;i<dias.length;i+=7){
-      const bloco=dias.slice(i,i+7);
-      sems.push({label:`${dataFmt(bloco[0]).slice(0,5)}`,dias:bloco.map(d=>({data:d,...porDia[d]}))});
+    let s=new Date(inicio);
+    while(s<=ultimo){
+      const e=new Date(s);e.setDate(s.getDate()+6);
+      const sStr=s.toISOString().slice(0,10);
+      const eStr=e.toISOString().slice(0,10);
+      // Só inclui semanas que têm pelo menos 1 dia com dado
+      const diasSem=Object.keys(porDia).filter(d=>d>=sStr&&d<=eStr);
+      if(diasSem.length>0){
+        const diasArr=diasSem.map(d=>({data:d,...porDia[d]}));
+        sems.push({
+          label:`${dataFmt(sStr).slice(0,5)} → ${dataFmt(eStr).slice(0,5)}`,
+          ini:sStr,fim:eStr,dias:diasArr
+        });
+      }
+      s=new Date(e);s.setDate(e.getDate()+1);
     }
-    return sems.reverse();
+    return sems.reverse(); // mais recente primeiro
   },[turnos]);
   const[semA,setSemA]=useState(0);const[semB,setSemB]=useState(1);const[metrica,setMetrica]=useState("r_km");
   if(semanas.length<2)return(
@@ -637,7 +659,13 @@ function TelaComparativo({turnos,cfg}){
   const DIAS=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   const getSemDias=(idx)=>{
     const sem=semanas[idx];if(!sem)return[];
-    return sem.dias.map(d=>({ds:diaSemana(d.data),r_km:d.km>0?d.bruto/d.km:0,r_hr:d.hrs>0?d.bruto/d.hrs:0,bruto:d.bruto,viagens:d.viagens}));
+    return sem.dias.map(d=>({
+      ds:diaSemana(d.data),
+      r_km:d.km>0?d.bruto/d.km:0,
+      r_hr:d.hrs>0?d.bruto/d.hrs:0,
+      bruto:d.bruto,
+      viagens:d.viagens
+    }));
   };
   const diasA=getSemDias(semA);const diasB=getSemDias(semB);
   return(
@@ -777,15 +805,21 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState("");const[loadingAI,setLoadingAI]=useState(false);
   const mes=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
-  const blocos=(()=>{
-    const ini=new Date(dataIni+"T12:00:00");const fim=new Date(dataFim+"T12:00:00");
-    const diff=Math.round((fim-ini)/(1000*60*60*24));const bl=Math.ceil(diff/4);
-    return[0,1,2,3].map(i=>{
-      const s=new Date(ini);s.setDate(ini.getDate()+i*bl);
-      const e=new Date(ini);e.setDate(ini.getDate()+(i+1)*bl-1);
-      const v=turnos.filter(t=>t.data&&t.data>=s.toISOString().slice(0,10)&&t.data<=e.toISOString().slice(0,10)).reduce((a,t)=>a+parseN(t.bruto)+parseN(t.bonus),0);
-      return{l:`${s.getDate()}/${s.getMonth()+1}`,v:Math.round(v)};
-    });
+  // Semanas do ciclo — mesmas usadas no comparativo
+  const semanasDociclo=(()=>{
+    const ini=new Date(dataIni+"T12:00:00");
+    const fim=new Date(dataFim+"T12:00:00");
+    const semanas=[];
+    let s=new Date(ini);
+    while(s<=fim){
+      const e=new Date(s);e.setDate(s.getDate()+6);
+      const sStr=s.toISOString().slice(0,10);
+      const eStr=e>fim?fim.toISOString().slice(0,10):e.toISOString().slice(0,10);
+      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr).reduce((a,t)=>a+parseN(t.bruto)+parseN(t.bonus),0);
+      semanas.push({l:`${s.getDate()}/${s.getMonth()+1}`,ini:sStr,fim:eStr,v:Math.round(v)});
+      s=new Date(e);s.setDate(e.getDate()+1);
+    }
+    return semanas;
   })();
   const pedirIA=useCallback(async()=>{
     setLoadingAI(true);
@@ -833,8 +867,8 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por período</p>
-        <BarChart data={blocos}/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana</p>
+        <BarChart data={semanasDociclo}/>
       </Card>
       <Card style={{marginBottom:10}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos fixos</p>
