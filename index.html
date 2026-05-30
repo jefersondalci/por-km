@@ -155,10 +155,19 @@ function TelaAuth({onLogado}){
   const[loading,setLoading]=useState(false);const[msg,setMsg]=useState("");const[msgTipo,setMsgTipo]=useState("ok");
   const toast=(m,t="ok")=>{setMsg(m);setMsgTipo(t);setTimeout(()=>setMsg(""),4000);};
   const entrar=async()=>{
+    if(!email||!senha)return toast("Preencha e-mail e senha.","erro");
     setLoading(true);
     const{error}=await supabase.auth.signInWithPassword({email,password:senha});
     if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message,"erro");
     else{toast("Bem-vindo! ✅");onLogado();}
+    setLoading(false);
+  };
+  const recuperarSenha=async()=>{
+    if(!email)return toast("Digite seu e-mail acima primeiro.","erro");
+    setLoading(true);
+    const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
+    if(error)toast("Erro: "+error.message,"erro");
+    else toast("E-mail de recuperação enviado! ✅");
     setLoading(false);
   };
   const cadastrar=async()=>{
@@ -189,8 +198,12 @@ function TelaAuth({onLogado}){
         style={{marginTop:12,background:"none",border:"1px solid #DDD",borderRadius:8,padding:11,fontSize:13,color:"#555",cursor:"pointer",width:"100%"}}>
         {modo==="login"?"Criar conta grátis":"Já tenho conta — Entrar"}
       </button>
-
-    </div>
+      {modo==="login"&&(
+        <button onClick={recuperarSenha} disabled={loading}
+          style={{marginTop:8,background:"none",border:"none",fontSize:12,color:"#AAA",cursor:"pointer",width:"100%",padding:"6px 0"}}>
+          Esqueci minha senha
+        </button>
+      )}
   );
 }
 
@@ -671,8 +684,8 @@ function TelaComparativo({turnos,cfg}){
       {/* Tabela dia a dia */}
       <Card style={{marginBottom:14}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Detalhamento — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
-          {["Dia","Sem A","Viag A","Sem B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:"#888",textAlign:"center"}}>{h}</div>)}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
+          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:"#888",textAlign:"center"}}>{h}</div>)}
         </div>
         {DIAS.map(ds=>{
           const dA=diasA.find(d=>d.ds===ds);const dB=diasB.find(d=>d.ds===ds);
@@ -680,11 +693,12 @@ function TelaComparativo({turnos,cfg}){
           const vA=dA?dA[metrica]:null;const vB=dB?dB[metrica]:null;
           const diff=vA&&vA>0&&vB!=null?((vB-vA)/vA)*100:null;
           return(
-            <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid #F9F9F9",alignItems:"center"}}>
+            <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid #F9F9F9",alignItems:"center"}}>
               <div style={{fontSize:12,fontWeight:600,color:"#333",textAlign:"center"}}>{ds}</div>
               <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{vA&&vA>0?fmtR(vA):"—"}</span></div>
               <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dA?dA.viagens+"v":"—"}</span></div>
               <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{vB&&vB>0?fmtR(vB):"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dB?dB.viagens+"v":"—"}</span></div>
               <div style={{textAlign:"center"}}>
                 {diff!=null?<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:diff>=0?"#E8F5E9":"#FFEBEE",color:diff>=0?"#2E7D32":"#C62828"}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:"#CCC"}}>—</span>}
               </div>
@@ -692,11 +706,12 @@ function TelaComparativo({turnos,cfg}){
           );
         })}
         {/* Totais */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
           <div style={{fontSize:10,fontWeight:700,color:"#555",textAlign:"center"}}>Méd.</div>
           <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
           <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
           <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
           <div style={{textAlign:"center"}}>{(()=>{
             const mA=diasA.filter(d=>d[metrica]>0);const mB=diasB.filter(d=>d[metrica]>0);
             if(!mA.length||!mB.length)return<span style={{fontSize:10,color:"#CCC"}}>—</span>;
