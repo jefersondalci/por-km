@@ -306,30 +306,58 @@ function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
 
 // FORM FECHAR TURNO
 function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
-  const[form,setForm]=useState({km_f:"",h_f:"",bruto:"",viagens:"",bonus:"0"});
-  const km=parseN(form.km_f)-parseN(turno.km_i);
-  const hrs=horasDiff(turno.h_i,form.h_f);
+  const[km_f,setKmF]=useState("");
+  const[h_f,setHF]=useState("");
+  const[uber,setUber]=useState({bruto:"",viagens:"",bonus:"0"});
+  const[nov,setNov]=useState({bruto:"",viagens:"",bonus:"0"});
+  const[part,setPart]=useState({bruto:"",viagens:""});
+
+  const totalBruto=parseN(uber.bruto)+parseN(uber.bonus)+parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto);
+  const totalViagens=parseN(uber.viagens)+parseN(nov.viagens)+parseN(part.viagens);
+  const km=parseN(km_f)-parseN(turno.km_i);
+  const hrs=horasDiff(turno.h_i,h_f);
+
+  const SecaoApp=({titulo,cor,corFundo,dados,setDados,temBonus=true})=>(
+    <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
+      <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <Inp label="Bruto (R$)" type="number" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))} placeholder="0.00"/>
+        <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
+      </div>
+      {temBonus&&<Inp label="Bônus (R$)" type="number" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))} placeholder="0"/>}
+    </div>
+  );
+
   return(
     <Card style={{border:"2px solid #FF9800",marginBottom:14}}>
       <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:"#E65100"}}>🔴 Encerrando {turno.num}º turno</p>
-      <p style={{fontSize:11,color:"#888",marginBottom:10}}>Iniciado às {turno.h_i} · KM inicial: {turno.km_i}</p>
+      <p style={{fontSize:11,color:"#888",marginBottom:8}}>Iniciado às {turno.h_i} · KM inicial: {turno.km_i}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Inp label="KM final" type="number" value={form.km_f} onChange={v=>setForm(f=>({...f,km_f:v}))} placeholder="76031"/>
-        <InpHora label="Hora fim" value={form.h_f} onChange={v=>setForm(f=>({...f,h_f:v}))}/>
-        <Inp label="Valor bruto (R$)" type="number" value={form.bruto} onChange={v=>setForm(f=>({...f,bruto:v}))} placeholder="120.00"/>
-        <Inp label="Nº de viagens" type="number" value={form.viagens} onChange={v=>setForm(f=>({...f,viagens:v}))} placeholder="9"/>
+        <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
+        <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
       </div>
-      <Inp label="Bônus Uber/99 (R$)" type="number" value={form.bonus} onChange={v=>setForm(f=>({...f,bonus:v}))} placeholder="0"/>
-      {form.km_f&&form.h_f&&form.bruto&&(
-        <div style={{marginTop:12,background:"#FFF3E0",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Bruto",fmtR(parseN(form.bruto)+parseN(form.bonus))]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#E65100"}}>{v}</div><div style={{fontSize:10,color:"#666"}}>{l}</div></div>
+
+      <SecaoApp titulo="⚫ Uber" cor="#000000" corFundo="#F5F5F5" dados={uber} setDados={setUber}/>
+      <SecaoApp titulo="🟡 99" cor="#F5A800" corFundo="#FFFBF0" dados={nov} setDados={setNov}/>
+      <SecaoApp titulo="🔵 Particular" cor="#1565C0" corFundo="#EEF4FF" dados={part} setDados={setPart} temBonus={false}/>
+
+      {/* Totais calculados */}
+      {(totalBruto>0||totalViagens>0)&&(
+        <div style={{marginTop:12,background:"#F1F8E9",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+          {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Total bruto",fmtR(totalBruto)],["Total viagens",totalViagens+"v"],["Uber",parseN(uber.viagens)+"v · "+fmtR(parseN(uber.bruto)+parseN(uber.bonus))],["99 + Part.",parseN(nov.viagens)+parseN(part.viagens)+"v · "+fmtR(parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto))]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:13,fontWeight:700,color:"#2E7D32"}}>{v}</div><div style={{fontSize:9,color:"#666"}}>{l}</div></div>
           ))}
         </div>
       )}
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
-        <Btn onClick={()=>{if(!form.km_f||!form.h_f||!form.bruto||!form.viagens)return alert("Preencha todos os campos.");onSalvar({...turno,...form,km_f:parseN(form.km_f),bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)});}} disabled={loading}>{loading?"Fechando...":"Fechar turno"}</Btn>
+        <Btn onClick={()=>{
+          if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");
+          if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");
+          if(totalViagens===0)return alert("Informe o número de viagens.");
+          onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:0});
+        }} disabled={loading}>{loading?"Fechando...":"Fechar turno"}</Btn>
       </div>
     </Card>
   );
