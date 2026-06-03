@@ -356,7 +356,13 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
           if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");
           if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");
           if(totalViagens===0)return alert("Informe o número de viagens.");
-          onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:0});
+          onSalvar({
+            ...turno,km_f:parseN(km_f),h_f,
+            bruto:totalBruto,viagens:totalViagens,bonus:0,
+            uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),
+            nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),
+            part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)
+          });
         }} disabled={loading}>{loading?"Fechando...":"Fechar turno"}</Btn>
       </div>
     </Card>
@@ -416,7 +422,14 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate}){
   };
   const fecharTurno=async(form)=>{
     setLoading(true);
-    const{data,error}=await supabase.from("turnos").update({km_f:parseN(form.km_f),h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",turnoAberto.id).select().single();
+    const upd={
+      km_f:parseN(form.km_f),h_f:form.h_f,
+      bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:0,
+      uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,
+      nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
+      part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0
+    };
+    const{data,error}=await supabase.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
     if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -832,8 +845,35 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const[dataIni,setDataIni]=useState(ca.ini);const[dataFim,setDataFim]=useState(ca.fim);
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState("");const[loadingAI,setLoadingAI]=useState(false);
-  const mes=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
-  // Semanas do ciclo — mesmas usadas no comparativo
+  const[appFiltro,setAppFiltro]=useState("total");
+
+  // Função para extrair bruto/viagens/km/hrs de um turno por app
+  const extrairApp=(t,app)=>{
+    const km=parseN(t.km_f)-parseN(t.km_i);
+    const hrs=horasDiff(t.h_i,t.h_f);
+    if(app==="uber")return{bruto:parseN(t.uber_bruto)+parseN(t.uber_bonus),viagens:parseN(t.uber_viagens),km,hrs};
+    if(app==="99")return{bruto:parseN(t.nov99_bruto)+parseN(t.nov99_bonus),viagens:parseN(t.nov99_viagens),km,hrs};
+    if(app==="part")return{bruto:parseN(t.part_bruto),viagens:parseN(t.part_viagens),km,hrs};
+    return{bruto:parseN(t.bruto)+parseN(t.bonus),viagens:parseN(t.viagens),km,hrs};
+  };
+
+  // Cálculo do período filtrado por app
+  const calcApp=(ini,fim)=>{
+    const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
+    const dias=[...new Set(mes.map(t=>t.data))].length;
+    let km_total=0,hrs_total=0,bruto=0,viagens=0;
+    mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;km_total+=d.km;hrs_total+=d.hrs;});
+    // custos completos sempre (não muda por app)
+    const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim);
+    return{...full,bruto,viagens,km_total,hrs_total,
+      r_km:km_total>0?bruto/km_total:0,
+      r_hr:hrs_total>0?bruto/hrs_total:0,
+      lucro:bruto-full.custos,dias};
+  };
+
+  const mes=calcApp(dataIni,dataFim);
+
+  // Semanas do ciclo filtradas por app
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00");
     const fim=new Date(dataFim+"T12:00:00");
@@ -843,12 +883,17 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
       const e=new Date(s);e.setDate(s.getDate()+6);
       const sStr=s.toISOString().slice(0,10);
       const eStr=e>fim?fim.toISOString().slice(0,10):e.toISOString().slice(0,10);
-      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr).reduce((a,t)=>a+parseN(t.bruto)+parseN(t.bonus),0);
-      semanas.push({l:`${s.getDate()}/${s.getMonth()+1}`,ini:sStr,fim:eStr,v:Math.round(v)});
+      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr).reduce((a,t)=>a+extrairApp(t,appFiltro).bruto,0);
+      semanas.push({l:`${s.getDate()}/${s.getMonth()+1}`,v:Math.round(v)});
       s=new Date(e);s.setDate(e.getDate()+1);
     }
     return semanas;
   })();
+
+  // Cores por app
+  const appCores={total:{bg:"#4CAF50",fg:"#fff",label:"Total"},uber:{bg:"#1A1A1A",fg:"#fff",label:"Uber"},
+    "99":{bg:"#F5A800",fg:"#1A1A1A",label:"99"},part:{bg:"#1565C0",fg:"#fff",label:"Particular"}};
+  const corAtual=appCores[appFiltro]?.bg||"#4CAF50";
   const pedirIA=useCallback(async()=>{
     setLoadingAI(true);
     try{
@@ -891,12 +936,21 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
       </div>
       <Card style={{marginBottom:10}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Eficiência (IE)</p>
+        {/* Seletor de app */}
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          {Object.entries(appCores).map(([key,{bg,fg,label}])=>(
+            <button key={key} onClick={()=>setAppFiltro(key)}
+              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${bg}`,background:appFiltro===key?bg:"#FFF",color:appFiltro===key?fg:bg,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
+              {label}
+            </button>
+          ))}
+        </div>
         <IEBar label="R$/km" real={mes.r_km} meta={parseN(cfg.meta_km)} valor={fmtR(mes.r_km)+"/km"}/>
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana</p>
-        <BarChart data={semanasDociclo}/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana — {appCores[appFiltro]?.label}</p>
+        <BarChart data={semanasDociclo} color={corAtual}/>
       </Card>
       <Card style={{marginBottom:10}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos fixos</p>
