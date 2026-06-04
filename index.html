@@ -99,11 +99,28 @@ const Lbl=({c})=><div style={{fontSize:11,color:"#888",marginBottom:4,marginTop:
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
   <div style={style}>
     {label&&<Lbl c={label}/>}
-    <input type={type==="number"?"text":type} inputMode={type==="number"?"decimal":type==="date"?"none":undefined}
+    <input type={type==="number"?"text":type}
+      inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
       value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
       style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
   </div>
 );
+// Input moeda — digita 10000 vira R$ 100,00
+const InpMoeda=({label,value,onChange})=>{
+  const handle=(e)=>{
+    const digits=e.target.value.replace(/\D/g,"").slice(0,10);
+    const num=parseInt(digits||"0",10)/100;
+    onChange(num);
+  };
+  const display=value!=null&&value!==""?Number(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"";
+  return(
+    <div>
+      {label&&<Lbl c={label}/>}
+      <input type="text" inputMode="numeric" value={display} onChange={handle} placeholder="0,00"
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
+    </div>
+  );
+};
 const InpHora=({label,value,onChange})=>{
   const handle=(e)=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);onChange(v);};
   return(<div><Lbl c={label}/><input type="text" inputMode="numeric" value={value??""} onChange={handle} placeholder="08:00" maxLength={5}
@@ -137,10 +154,14 @@ function IEBar({label,real,meta,valor}){
 }
 function BarChart({data,color="#4CAF50"}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
-  return<div style={{display:"flex",alignItems:"flex-end",gap:4,height:90,padding:"0 2px"}}>
+  const fmtBar=(v)=>{
+    if(v>=1000)return"R$"+Math.round(v/1000*10)/10+"k";
+    return"R$"+Math.round(v);
+  };
+  return<div style={{display:"flex",alignItems:"flex-end",gap:4,height:100,padding:"0 2px"}}>
     {data.map((d,i)=>(
       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-        <div style={{fontSize:8,color,fontWeight:600,textAlign:"center"}}>{d.v>0?fmt(d.v,0):""}</div>
+        <div style={{fontSize:8,color,fontWeight:700,textAlign:"center",lineHeight:1.1}}>{d.v>0?fmtBar(d.v):""}</div>
         <div style={{width:"100%",height:Math.max(4,(Math.abs(d.v)/max)*65),background:d.v>=0?color:"#EF5350",borderRadius:"4px 4px 0 0",opacity:0.85}}/>
         <div style={{fontSize:8,color:"#999",textAlign:"center"}}>{d.l}</div>
       </div>
@@ -321,10 +342,10 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
     <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
       <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <Inp label="Bruto (R$)" type="number" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))} placeholder="0.00"/>
+        <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
         <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
       </div>
-      {temBonus&&<Inp label="Bônus (R$)" type="number" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))} placeholder="0"/>}
+      {temBonus&&<InpMoeda label="Bônus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
     </div>
   );
 
@@ -859,19 +880,46 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
 
   // Cálculo do período filtrado por app
   const calcApp=(ini,fim)=>{
-    const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
-    const dias=[...new Set(mes.map(t=>t.data))].length;
+    const mesTurnos=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
+    const dias=[...new Set(mesTurnos.map(t=>t.data))].length;
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
-    mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;km_total+=d.km;hrs_total+=d.hrs;});
-    // custos completos sempre (não muda por app)
+    mesTurnos.forEach(t=>{
+      const d=extrairApp(t,appFiltro);
+      bruto+=d.bruto;
+      viagens+=d.viagens;
+      if(appFiltro==="total"){
+        // Total: usa km e horas completos
+        km_total+=parseN(t.km_f)-parseN(t.km_i);
+        hrs_total+=horasDiff(t.h_i,t.h_f);
+      } else {
+        // Por app: usa proporção do bruto desse app em relação ao total do turno
+        const brutoTotalT=parseN(t.bruto)+parseN(t.bonus);
+        if(brutoTotalT>0&&d.bruto>0){
+          const prop=d.bruto/brutoTotalT;
+          km_total+=(parseN(t.km_f)-parseN(t.km_i))*prop;
+          hrs_total+=horasDiff(t.h_i,t.h_f)*prop;
+        }
+      }
+    });
     const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim);
-    return{...full,bruto,viagens,km_total,hrs_total,
+    return{...full,bruto,viagens,km_total:Math.round(km_total),hrs_total,
       r_km:km_total>0?bruto/km_total:0,
       r_hr:hrs_total>0?bruto/hrs_total:0,
       lucro:bruto-full.custos,dias};
   };
 
   const mes=calcApp(dataIni,dataFim);
+  const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
+
+  // Cores por app — ordem correta
+  const appCores=[
+    {id:"total",bg:"#4CAF50",fg:"#fff",label:"Total"},
+    {id:"uber",bg:"#1A1A1A",fg:"#fff",label:"Uber"},
+    {id:"99",bg:"#F5A800",fg:"#1A1A1A",label:"99"},
+    {id:"part",bg:"#1565C0",fg:"#fff",label:"Particular"},
+  ];
+  const corAtual=appCores.find(a=>a.id===appFiltro)?.bg||"#4CAF50";
+  const labelAtual=appCores.find(a=>a.id===appFiltro)?.label||"Total";
 
   // Semanas do ciclo filtradas por app
   const semanasDociclo=(()=>{
@@ -890,10 +938,6 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     return semanas;
   })();
 
-  // Cores por app
-  const appCores={total:{bg:"#4CAF50",fg:"#fff",label:"Total"},uber:{bg:"#1A1A1A",fg:"#fff",label:"Uber"},
-    "99":{bg:"#F5A800",fg:"#1A1A1A",label:"99"},part:{bg:"#1565C0",fg:"#fff",label:"Particular"}};
-  const corAtual=appCores[appFiltro]?.bg||"#4CAF50";
   const pedirIA=useCallback(async()=>{
     setLoadingAI(true);
     try{
@@ -906,7 +950,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><p style={{fontSize:12,color:"#888"}}>{mes.dias} dias trabalhados</p><p style={{fontSize:11,color:"#1A56A0",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p></div>
+          <div><p style={{fontSize:12,color:"#888"}}>{mesTotal.dias} dias trabalhados</p><p style={{fontSize:11,color:"#1A56A0",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p></div>
           <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?"#1A1A1A":"#F0F4FF",color:mostrarFiltro?"#fff":"#1A56A0",border:"1px solid #C5D8FF",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>📅 Período</button>
         </div>
         {mostrarFiltro&&(
@@ -924,23 +968,23 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <Card style={{background:mes.lucro>=0?"#F1F8E9":"#FFEBEE"}}>
+        <Card style={{background:mesTotal.lucro>=0?"#F1F8E9":"#FFEBEE"}}>
           <div style={{fontSize:11,color:"#888"}}>Lucro líquido</div>
-          <div style={{fontSize:22,fontWeight:800,color:mes.lucro>=0?"#2E7D32":"#C62828",marginTop:4}}>{fmtR(mes.lucro)}</div>
-          <div style={{fontSize:11,color:"#999",marginTop:4}}>de {fmtR(mes.bruto)} bruto</div>
+          <div style={{fontSize:22,fontWeight:800,color:mesTotal.lucro>=0?"#2E7D32":"#C62828",marginTop:4}}>{fmtR(mesTotal.lucro)}</div>
+          <div style={{fontSize:11,color:"#999",marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Dias trabalhados</div><div style={{fontSize:18,fontWeight:700}}>{mes.dias} dias</div></Card>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Viagens · KM</div><div style={{fontSize:16,fontWeight:700}}>{mes.viagens} · {mes.km_total}km</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Dias trabalhados</div><div style={{fontSize:18,fontWeight:700}}>{mesTotal.dias} dias</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Viagens · KM</div><div style={{fontSize:16,fontWeight:700}}>{mesTotal.viagens} · {mesTotal.km_total}km</div></Card>
         </div>
       </div>
       <Card style={{marginBottom:10}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Eficiência (IE)</p>
         {/* Seletor de app */}
         <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {Object.entries(appCores).map(([key,{bg,fg,label}])=>(
-            <button key={key} onClick={()=>setAppFiltro(key)}
-              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${bg}`,background:appFiltro===key?bg:"#FFF",color:appFiltro===key?fg:bg,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
+          {appCores.map(({id,bg,fg,label})=>(
+            <button key={id} onClick={()=>setAppFiltro(id)}
+              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${bg}`,background:appFiltro===id?bg:"#FFF",color:appFiltro===id?fg:bg,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
               {label}
             </button>
           ))}
@@ -949,7 +993,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana — {appCores[appFiltro]?.label}</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana — {labelAtual}</p>
         <BarChart data={semanasDociclo} color={corAtual}/>
       </Card>
       <Card style={{marginBottom:10}}>
