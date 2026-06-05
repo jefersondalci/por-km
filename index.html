@@ -68,7 +68,8 @@ function gerarCiclos(dia,turnos){
 }
 
 function calcPeriodo(turnos,abast,cfg,ini,fim){
-  const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
+  // Exclui turnos abertos (sem km_f ou sem bruto)
+  const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
   const hrs_total=mes.reduce((s,t)=>s+horasDiff(t.h_i,t.h_f),0);
@@ -416,7 +417,7 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
 }
 
 // DIÁRIO
-function TelaDiario({turnos,cfg,userId,onAdd,onUpdate}){
+function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null);
   const[editando,setEditando]=useState(null);
   const[loading,setLoading]=useState(false);
@@ -460,6 +461,13 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate}){
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
+  const excluirTurno=async(t)=>{
+    if(!window.confirm(`Excluir ${t.num}º turno de ${dataFmt(t.data)}? Esta ação não pode ser desfeita.`))return;
+    setLoading(true);
+    const{error}=await supabase.from("turnos").delete().eq("id",t.id);
+    if(!error)onDelete(t.id);else alert("Erro: "+error.message);
+    setLoading(false);
+  };
   const pedirIA=useCallback(async()=>{
     setLoadingAI(true);
     const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
@@ -483,6 +491,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate}){
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,background:"#FFF3E0",color:"#E65100",padding:"2px 7px",borderRadius:4,fontWeight:600}}>Em aberto</span>:<Badge ok={lucro>0}>{lucro>0?"✓":"✗"}</Badge>}
             <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F5F5",border:"1px solid #DDD",borderRadius:6,cursor:"pointer",color:"#555"}}>✏️</button>
+            <button onClick={()=>excluirTurno(t)} style={{fontSize:11,padding:"3px 8px",background:"#FFEBEE",border:"1px solid #FFCDD2",borderRadius:6,cursor:"pointer",color:"#C62828"}}>🗑️</button>
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM inicial · Hora início</span><b>{t.km_i} · {t.h_i||"—"}</b></div>
@@ -880,7 +889,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
 
   // Cálculo do período filtrado por app
   const calcApp=(ini,fim)=>{
-    const mesTurnos=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim);
+    const mesTurnos=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
     const dias=[...new Set(mesTurnos.map(t=>t.data))].length;
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
     mesTurnos.forEach(t=>{
@@ -931,7 +940,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
       const e=new Date(s);e.setDate(s.getDate()+6);
       const sStr=s.toISOString().slice(0,10);
       const eStr=e>fim?fim.toISOString().slice(0,10):e.toISOString().slice(0,10);
-      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr).reduce((a,t)=>a+extrairApp(t,appFiltro).bruto,0);
+      const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr&&parseN(t.km_f)>0&&parseN(t.bruto)>0).reduce((a,t)=>a+extrairApp(t,appFiltro).bruto,0);
       semanas.push({l:`${s.getDate()}/${s.getMonth()+1}`,v:Math.round(v)});
       s=new Date(e);s.setDate(e.getDate()+1);
     }
@@ -1167,7 +1176,7 @@ function App(){
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
-        {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))}/>}
+        {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
         {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
