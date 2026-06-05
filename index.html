@@ -326,6 +326,20 @@ function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   );
 }
 
+// SEÇÃO APP — fora do FormFecharTurno para não recriar a cada digitação
+function SecaoApp({titulo,cor,corFundo,dados,setDados,temBonus=true}){
+  return(
+    <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
+      <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
+        <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
+      </div>
+      {temBonus&&<InpMoeda label="Bônus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
+    </div>
+  );
+}
+
 // FORM FECHAR TURNO
 function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   const[km_f,setKmF]=useState("");
@@ -338,17 +352,6 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   const totalViagens=parseN(uber.viagens)+parseN(nov.viagens)+parseN(part.viagens);
   const km=parseN(km_f)-parseN(turno.km_i);
   const hrs=horasDiff(turno.h_i,h_f);
-
-  const SecaoApp=({titulo,cor,corFundo,dados,setDados,temBonus=true})=>(
-    <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
-      <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
-        <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
-      </div>
-      {temBonus&&<InpMoeda label="Bônus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
-    </div>
-  );
 
   return(
     <Card style={{border:"2px solid #FF9800",marginBottom:14}}>
