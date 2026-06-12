@@ -614,10 +614,61 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
           {aiMsg?<p style={{fontSize:12,color:"#555",lineHeight:1.7}}>{aiMsg}</p>:<p style={{fontSize:12,color:"#888",fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu dia.</p>}
         </div>
       )}
-      {turnosAnt.length>0&&<>
-        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
-        {turnosAnt.map(t=><CardTurno key={t.id} t={t}/>)}
-      </>}
+      {turnosAnt.length>0&&(
+        <>
+          <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
+          {/* Agrupa turnos por data */}
+          {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
+            const turnosDia=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
+            const fechados=turnosDia.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
+            const resumo=fechados.reduce((acc,t)=>{
+              const k=parseN(t.km_f)-parseN(t.km_i);
+              const h=horasDiff(t.h_i,t.h_f);
+              return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};
+            },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
+            const totBruto=resumo.bruto+resumo.bonus;
+            const rKm=resumo.km>0?totBruto/resumo.km:0;
+            const rHr=resumo.hrs>0?totBruto/resumo.hrs:0;
+            return(
+              <div key={data}>
+                <p style={{fontSize:11,fontWeight:600,color:"#1A56A0",margin:"12px 0 6px"}}>📅 {dataFmt(data)}</p>
+                {turnosDia.map(t=><CardTurno key={t.id} t={t}/>)}
+                {fechados.length>0&&(
+                  <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+                    <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#2E7D32"}}>{fmtR(totBruto)}</div>
+                        <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
+                      </div>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#444"}}>{resumo.viagens}v · {resumo.km}km</div>
+                        <div style={{fontSize:10,color:"#888"}}>{fmt(resumo.hrs,1)}h trabalhadas</div>
+                      </div>
+                    </div>
+                    {resumo.bonus>0&&(
+                      <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+                        <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus do dia</span>
+                        <b style={{color:"#1565C0"}}>{fmtR(resumo.bonus)}</b>
+                      </div>
+                    )}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                      <div style={{textAlign:"center",background:rKm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(rKm)}/km</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+                      </div>
+                      <div style={{textAlign:"center",background:rHr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(rHr)}/h</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
