@@ -434,11 +434,31 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const totalBruto=turnos.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const totalViagens=turnos.reduce((s,t)=>s+parseN(t.viagens),0);
   const calcT=(t)=>{
-    const k=parseN(t.km_f)-parseN(t.km_i);const h=horasDiff(t.h_i,t.h_f);const b=parseN(t.bruto)+parseN(t.bonus);
-    const aut=parseN(cfg.autonomia)||7;const c=k>0?(k/aut)*parseN(cfg.preco_litro):0;
+    const k=parseN(t.km_f)-parseN(t.km_i);
+    const h=horasDiff(t.h_i,t.h_f);
+    const b=parseN(t.bruto); // sem bonus no turno individual
+    const bonus=parseN(t.bonus);
+    const aut=parseN(cfg.autonomia)||7;
+    const c=k>0?(k/aut)*parseN(cfg.preco_litro):0;
     const lucro=b-c-k*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-k*parseN(cfg.revisao_km)-k*parseN(cfg.emergencia_km);
-    return{k,h,b,lucro,r_km:k>0?b/k:0,r_hr:h>0?b/h:0};
+    return{k,h,b,bonus,lucro,r_km:k>0?b/k:0,r_hr:h>0?b/h:0};
   };
+
+  // Resumo do dia (com bonus no total)
+  const turnosHojeFechados=turnosHoje.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
+  const resumoDia=turnosHojeFechados.reduce((acc,t)=>{
+    const k=parseN(t.km_f)-parseN(t.km_i);
+    const h=horasDiff(t.h_i,t.h_f);
+    return{
+      bruto:acc.bruto+parseN(t.bruto),
+      bonus:acc.bonus+parseN(t.bonus),
+      km:acc.km+k,hrs:acc.hrs+h,
+      viagens:acc.viagens+parseN(t.viagens)
+    };
+  },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
+  const totalDiaBruto=resumoDia.bruto+resumoDia.bonus;
+  const diaRkm=resumoDia.km>0?totalDiaBruto/resumoDia.km:0;
+  const diaRhr=resumoDia.hrs>0?totalDiaBruto/resumoDia.hrs:0;
   const abrirTurno=async(form)=>{
     setLoading(true);
     const{data,error}=await supabase.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
@@ -485,7 +505,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
-    const{k,h,b,lucro,r_km,r_hr}=calcT(t);
+    const{k,h,b,bonus,lucro,r_km,r_hr}=calcT(t);
     const okKm=r_km>=parseN(cfg.meta_km);const okHr=r_hr>=parseN(cfg.meta_hora);
     return(
       <Card style={{marginBottom:8,borderLeft:`3px solid ${aberto?"#FF9800":"#4CAF50"}`}}>
@@ -501,6 +521,9 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         {!aberto&&<>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM rodado · Horas</span><b>{k} km · {fmt(h,1)}h</b></div>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Viagens · Bruto</span><b>{t.viagens} · {fmtR(b)}</b></div>
+          {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}>
+            <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus (não conta no turno)</span><b style={{color:"#1565C0"}}>{fmtR(bonus)}</b>
+          </div>}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Lucro est.</span><b style={{color:lucro>0?"#2E7D32":"#C62828"}}>{fmtR(lucro)}</b></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #F0F0F0"}}>
             <div style={{textAlign:"center",background:okKm?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"4px 6px"}}>
@@ -547,6 +570,39 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         </div>
       )}
       {turnosHoje.map(t=><CardTurno key={t.id} t={t}/>)}
+
+      {/* Card resumo do dia */}
+      {turnosHojeFechados.length>0&&(
+        <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+          <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#2E7D32"}}>{fmtR(totalDiaBruto)}</div>
+              <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
+            </div>
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#444"}}>{resumoDia.viagens} viagens</div>
+              <div style={{fontSize:10,color:"#888"}}>{resumoDia.km} km · {fmt(resumoDia.hrs,1)}h</div>
+            </div>
+          </div>
+          {resumoDia.bonus>0&&(
+            <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+              <span style={{color:"#1565C0",fontWeight:600}}>🎯 Total de bônus do dia</span>
+              <b style={{color:"#1565C0"}}>{fmtR(resumoDia.bonus)}</b>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <div style={{textAlign:"center",background:diaRkm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:diaRkm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(diaRkm)}/km</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_km))}/km</div>
+            </div>
+            <div style={{textAlign:"center",background:diaRhr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:diaRhr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(diaRhr)}/h</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+            </div>
+          </div>
+        </Card>
+      )}
       {turnosHoje.filter(t=>t.bruto>0).length>0&&(
         <div style={{background:"#F1EFE8",borderRadius:10,padding:14,marginTop:4,marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
