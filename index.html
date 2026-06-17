@@ -424,8 +424,6 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null);
   const[editando,setEditando]=useState(null);
   const[loading,setLoading]=useState(false);
-  const[aiMsg,setAiMsg]=useState("");
-  const[loadingAI,setLoadingAI]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
@@ -491,17 +489,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
-    const totK=turnosHoje.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-    const totV=turnosHoje.reduce((s,t)=>s+parseN(t.viagens),0);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:`Consultor financeiro de motoristas. Em português (3-4 frases). Dia: ${turnosHoje.length} turno(s), R$${totB.toFixed(2)} bruto, ${totK}km, ${totV} viagens. Metas: R$${cfg.meta_km}/km, R$${cfg.meta_hora}/h. Avalie e dê 1 dica.`}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Não foi possível conectar à IA.");}
-    setLoadingAI(false);
-  },[turnosHoje,cfg]);
+
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
@@ -602,17 +590,6 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
             </div>
           </div>
         </Card>
-      )}
-      {turnosHoje.filter(t=>t.bruto>0).length>0&&(
-        <div style={{background:"#F1EFE8",borderRadius:10,padding:14,marginTop:4,marginBottom:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:"#444"}}>✨ Análise do dia — IA</span>
-            <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",opacity:loadingAI?0.6:1}}>
-              {loadingAI?"Analisando...":"Analisar ↗"}
-            </button>
-          </div>
-          {aiMsg?<p style={{fontSize:12,color:"#555",lineHeight:1.7}}>{aiMsg}</p>:<p style={{fontSize:12,color:"#888",fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu dia.</p>}
-        </div>
       )}
       {turnosAnt.length>0&&(
         <>
@@ -984,7 +961,6 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const[dataIni,setDataIni]=useState(ca.ini);const[dataFim,setDataFim]=useState(ca.fim);
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
-  const[aiMsg,setAiMsg]=useState("");const[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
 
   // Função para extrair bruto/viagens/km/hrs de um turno por app
@@ -1057,14 +1033,6 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     return semanas;
   })();
 
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:`Consultor financeiro de motoristas. Em português (4-5 frases). Ciclo: bruto R$${mes.bruto.toFixed(2)}, custos R$${mes.custos.toFixed(2)}, lucro R$${mes.lucro.toFixed(2)}, ${mes.dias} dias, ${mes.viagens} viagens, ${mes.km_total}km. R$/km:${mes.r_km.toFixed(2)}(meta:${cfg.meta_km}), R$/hora:${mes.r_hr.toFixed(2)}(meta:${cfg.meta_hora}). Dê 2 sugestões práticas.`}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Não foi possível conectar à IA.");}
-    setLoadingAI(false);
-  },[mes,cfg]);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{marginBottom:14}}>
@@ -1133,13 +1101,6 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"—"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"—"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"—"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"—"]].map(([l,v])=>(
           <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:"#999",marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700}}>{v}</div></Card>
         ))}
-      </div>
-      <div style={{background:"#F1EFE8",borderRadius:10,padding:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:"#444"}}>✨ Análise do ciclo — IA</span>
-          <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",opacity:loadingAI?0.6:1}}>{loadingAI?"Analisando...":"Analisar ↗"}</button>
-        </div>
-        {aiMsg?<p style={{fontSize:12,color:"#555",lineHeight:1.8}}>{aiMsg}</p>:<p style={{fontSize:12,color:"#888",fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}
       </div>
     </div>
   );
