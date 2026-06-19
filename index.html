@@ -7,7 +7,7 @@
 <title>Por km</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -68,6 +68,7 @@ function gerarCiclos(dia,turnos){
 }
 
 function calcPeriodo(turnos,abast,cfg,ini,fim){
+  // Exclui turnos abertos (sem km_f ou sem bruto)
   const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
@@ -93,6 +94,7 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
     r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0};
 }
 
+// componentes base
 const Card=({children,style})=><div style={{background:"#fff",borderRadius:12,border:"1px solid #E8E8E8",padding:14,...style}}>{children}</div>;
 const Lbl=({c})=><div style={{fontSize:11,color:"#888",marginBottom:4,marginTop:12}}>{c}</div>;
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
@@ -104,6 +106,7 @@ const Inp=({label,type="text",value,onChange,placeholder,style})=>(
       style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
   </div>
 );
+// Input moeda — digita 10000 vira R$ 100,00
 const InpMoeda=({label,value,onChange})=>{
   const handle=(e)=>{
     const digits=e.target.value.replace(/\D/g,"").slice(0,10);
@@ -167,6 +170,7 @@ function BarChart({data,color="#4CAF50"}){
   </div>;
 }
 
+// AUTH
 function TelaAuth({onLogado}){
   const[modo,setModo]=useState("login");
   const[nome,setNome]=useState("");const[email,setEmail]=useState("");const[senha,setSenha]=useState("");
@@ -226,6 +230,7 @@ function TelaAuth({onLogado}){
   );
 }
 
+// AGUARDANDO
 function TelaAguardando({onSair}){
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}>
@@ -237,6 +242,7 @@ function TelaAguardando({onSair}){
   );
 }
 
+// CONFIG
 function TelaConfig({cfg,userId,onSalvo}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
@@ -300,6 +306,7 @@ function TelaConfig({cfg,userId,onSalvo}){
   );
 }
 
+// FORM ABRIR TURNO
 function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});
   return(
@@ -319,6 +326,7 @@ function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   );
 }
 
+// SEÇÃO APP — fora do FormFecharTurno para não recriar a cada digitação
 function SecaoApp({titulo,cor,corFundo,dados,setDados,temBonus=true}){
   return(
     <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
@@ -332,6 +340,7 @@ function SecaoApp({titulo,cor,corFundo,dados,setDados,temBonus=true}){
   );
 }
 
+// FORM FECHAR TURNO
 function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   const[km_f,setKmF]=useState("");
   const[h_f,setHF]=useState("");
@@ -352,9 +361,12 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
         <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
         <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
       </div>
+
       <SecaoApp titulo="⚫ Uber" cor="#000000" corFundo="#F5F5F5" dados={uber} setDados={setUber}/>
       <SecaoApp titulo="🟡 99" cor="#F5A800" corFundo="#FFFBF0" dados={nov} setDados={setNov}/>
       <SecaoApp titulo="🔵 Particular" cor="#1565C0" corFundo="#EEF4FF" dados={part} setDados={setPart} temBonus={false}/>
+
+      {/* Totais calculados */}
       {(totalBruto>0||totalViagens>0)&&(
         <div style={{marginTop:12,background:"#F1F8E9",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
           {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Total bruto",fmtR(totalBruto)],["Total viagens",totalViagens+"v"],["Uber",parseN(uber.viagens)+"v · "+fmtR(parseN(uber.bruto)+parseN(uber.bonus))],["99 + Part.",parseN(nov.viagens)+parseN(part.viagens)+"v · "+fmtR(parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto))]].map(([l,v])=>(
@@ -362,6 +374,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
           ))}
         </div>
       )}
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={()=>{
@@ -381,6 +394,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   );
 }
 
+// FORM TURNO COMPLETO (edição)
 function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
   const[form,setForm]=useState(inicial);
   return(
@@ -405,6 +419,7 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
   );
 }
 
+// DIÁRIO
 function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null);
   const[editando,setEditando]=useState(null);
@@ -419,18 +434,25 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const calcT=(t)=>{
     const k=parseN(t.km_f)-parseN(t.km_i);
     const h=horasDiff(t.h_i,t.h_f);
-    const b=parseN(t.bruto);
+    const b=parseN(t.bruto); // sem bonus no turno individual
     const bonus=parseN(t.bonus);
     const aut=parseN(cfg.autonomia)||7;
     const c=k>0?(k/aut)*parseN(cfg.preco_litro):0;
     const lucro=b-c-k*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-k*parseN(cfg.revisao_km)-k*parseN(cfg.emergencia_km);
     return{k,h,b,bonus,lucro,r_km:k>0?b/k:0,r_hr:h>0?b/h:0};
   };
+
+  // Resumo do dia (com bonus no total)
   const turnosHojeFechados=turnosHoje.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const resumoDia=turnosHojeFechados.reduce((acc,t)=>{
     const k=parseN(t.km_f)-parseN(t.km_i);
     const h=horasDiff(t.h_i,t.h_f);
-    return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};
+    return{
+      bruto:acc.bruto+parseN(t.bruto),
+      bonus:acc.bonus+parseN(t.bonus),
+      km:acc.km+k,hrs:acc.hrs+h,
+      viagens:acc.viagens+parseN(t.viagens)
+    };
   },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
   const totalDiaBruto=resumoDia.bruto+resumoDia.bonus;
   const diaRkm=resumoDia.km>0?totalDiaBruto/resumoDia.km:0;
@@ -467,6 +489,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
+
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
@@ -535,6 +558,8 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         </div>
       )}
       {turnosHoje.map(t=><CardTurno key={t.id} t={t}/>)}
+
+      {/* Card resumo do dia */}
       {turnosHojeFechados.length>0&&(
         <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
           <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
@@ -569,6 +594,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       {turnosAnt.length>0&&(
         <>
           <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
+          {/* Agrupa turnos por data */}
           {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
             const turnosDia=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
             const fechados=turnosDia.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
@@ -624,6 +650,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   );
 }
 
+// FORM ABASTECIMENTO
 function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   const isGNV=dados.tipo==="GNV";
   const quant=parseN(dados.litros);
@@ -666,6 +693,7 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   );
 }
 
+// COMBUSTÍVEL
 function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
   const[mostrar,setMostrar]=useState(false);
@@ -738,9 +766,11 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   );
 }
 
+// COMPARATIVO
 function TelaComparativo({turnos,cfg}){
   const semanas=useMemo(()=>{
     if(!turnos.length)return[];
+    // Agrupa por dia
     const porDia={};
     turnos.forEach(t=>{
       if(!t.data)return;
@@ -750,10 +780,12 @@ function TelaComparativo({turnos,cfg}){
       porDia[t.data].hrs+=horasDiff(t.h_i,t.h_f);
       porDia[t.data].viagens+=parseN(t.viagens);
     });
+    // Gera semanas calendário (segunda a domingo) cobrindo todos os dias do BD
     const dias=Object.keys(porDia).sort();
     if(!dias.length)return[];
     const primeiro=new Date(dias[0]+"T12:00:00");
     const ultimo=new Date(dias[dias.length-1]+"T12:00:00");
+    // Vai até a segunda-feira da semana do primeiro dia
     const diaSem=primeiro.getDay();
     const inicio=new Date(primeiro);
     inicio.setDate(primeiro.getDate()-(diaSem===0?6:diaSem-1));
@@ -763,14 +795,18 @@ function TelaComparativo({turnos,cfg}){
       const e=new Date(s);e.setDate(s.getDate()+6);
       const sStr=s.toISOString().slice(0,10);
       const eStr=e.toISOString().slice(0,10);
+      // Só inclui semanas que têm pelo menos 1 dia com dado
       const diasSem=Object.keys(porDia).filter(d=>d>=sStr&&d<=eStr);
       if(diasSem.length>0){
         const diasArr=diasSem.map(d=>({data:d,...porDia[d]}));
-        sems.push({label:`${dataFmt(sStr).slice(0,5)} → ${dataFmt(eStr).slice(0,5)}`,ini:sStr,fim:eStr,dias:diasArr});
+        sems.push({
+          label:`${dataFmt(sStr).slice(0,5)} → ${dataFmt(eStr).slice(0,5)}`,
+          ini:sStr,fim:eStr,dias:diasArr
+        });
       }
       s=new Date(e);s.setDate(e.getDate()+1);
     }
-    return sems.reverse();
+    return sems.reverse(); // mais recente primeiro
   },[turnos]);
   const[semA,setSemA]=useState(0);const[semB,setSemB]=useState(1);const[metrica,setMetrica]=useState("r_km");
   if(semanas.length<2)return(
@@ -781,7 +817,13 @@ function TelaComparativo({turnos,cfg}){
   const DIAS=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   const getSemDias=(idx)=>{
     const sem=semanas[idx];if(!sem)return[];
-    return sem.dias.map(d=>({ds:diaSemana(d.data),r_km:d.km>0?d.bruto/d.km:0,r_hr:d.hrs>0?d.bruto/d.hrs:0,bruto:d.bruto,viagens:d.viagens}));
+    return sem.dias.map(d=>({
+      ds:diaSemana(d.data),
+      r_km:d.km>0?d.bruto/d.km:0,
+      r_hr:d.hrs>0?d.bruto/d.hrs:0,
+      bruto:d.bruto,
+      viagens:d.viagens
+    }));
   };
   const diasA=getSemDias(semA);const diasB=getSemDias(semB);
   return(
@@ -802,6 +844,7 @@ function TelaComparativo({turnos,cfg}){
           <button key={v} onClick={()=>setMetrica(v)} style={{padding:"7px 10px",borderRadius:7,border:"1px solid #DDD",background:metrica===v?"#1A1A1A":"#FFF",color:metrica===v?"#FFF":"#555",fontSize:12,fontWeight:600,cursor:"pointer",flex:1}}>{l}</button>
         ))}
       </div>
+      {/* Gráfico */}
       <Card style={{marginBottom:14}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"} — dia a dia</p>
         <div style={{display:"flex",gap:4}}>
@@ -825,6 +868,7 @@ function TelaComparativo({turnos,cfg}){
           <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#4CAF50",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semB]?.label}</span></div>
         </div>
       </Card>
+      {/* Tabela dia a dia */}
       <Card style={{marginBottom:14}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Detalhamento — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
@@ -848,6 +892,7 @@ function TelaComparativo({turnos,cfg}){
             </div>
           );
         })}
+        {/* Totais */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
           <div style={{fontSize:10,fontWeight:700,color:"#555",textAlign:"center"}}>Méd.</div>
           <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
@@ -867,6 +912,7 @@ function TelaComparativo({turnos,cfg}){
   );
 }
 
+// HISTÓRICO CICLOS
 function TelaHistorico({turnos,abastecimentos,cfg}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
@@ -910,12 +956,14 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
   );
 }
 
+// DASHBOARD
 function TelaDashboard({turnos,abastecimentos,cfg}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const[dataIni,setDataIni]=useState(ca.ini);const[dataFim,setDataFim]=useState(ca.fim);
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
 
+  // Função para extrair bruto/viagens/km/hrs de um turno por app
   const extrairApp=(t,app)=>{
     const km=parseN(t.km_f)-parseN(t.km_i);
     const hrs=horasDiff(t.h_i,t.h_f);
@@ -925,6 +973,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     return{bruto:parseN(t.bruto)+parseN(t.bonus),viagens:parseN(t.viagens),km,hrs};
   };
 
+  // Cálculo do período filtrado por app
   const calcApp=(ini,fim)=>{
     const mesTurnos=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
     const dias=[...new Set(mesTurnos.map(t=>t.data))].length;
@@ -934,9 +983,11 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
       bruto+=d.bruto;
       viagens+=d.viagens;
       if(appFiltro==="total"){
+        // Total: usa km e horas completos
         km_total+=parseN(t.km_f)-parseN(t.km_i);
         hrs_total+=horasDiff(t.h_i,t.h_f);
       } else {
+        // Por app: usa proporção do bruto desse app em relação ao total do turno
         const brutoTotalT=parseN(t.bruto)+parseN(t.bonus);
         if(brutoTotalT>0&&d.bruto>0){
           const prop=d.bruto/brutoTotalT;
@@ -955,6 +1006,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
 
+  // Cores por app — ordem correta
   const appCores=[
     {id:"total",bg:"#4CAF50",fg:"#fff",label:"Total"},
     {id:"uber",bg:"#1A1A1A",fg:"#fff",label:"Uber"},
@@ -964,6 +1016,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const corAtual=appCores.find(a=>a.id===appFiltro)?.bg||"#4CAF50";
   const labelAtual=appCores.find(a=>a.id===appFiltro)?.label||"Total";
 
+  // Semanas do ciclo filtradas por app
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00");
     const fim=new Date(dataFim+"T12:00:00");
@@ -1014,6 +1067,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
       </div>
       <Card style={{marginBottom:10}}>
         <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Eficiência (IE)</p>
+        {/* Seletor de app */}
         <div style={{display:"flex",gap:6,marginBottom:14}}>
           {appCores.map(({id,bg,fg,label})=>(
             <button key={id} onClick={()=>setAppFiltro(id)}
@@ -1052,6 +1106,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   );
 }
 
+// ADMIN
 function TelaAdmin({onSair}){
   const[usuarios,setUsuarios]=useState([]);const[loading,setLoading]=useState(true);
   const[busca,setBusca]=useState("");const[filtro,setFiltro]=useState("todos");
@@ -1107,6 +1162,7 @@ function TelaAdmin({onSair}){
   );
 }
 
+// APP PRINCIPAL
 function App(){
   const[session,setSession]=useState(null);const[loading,setLoading]=useState(true);
   const[nav,setNav]=useState("dashboard");
