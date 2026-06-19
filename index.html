@@ -7,12 +7,12 @@
 <title>Por km</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
-body{background:#F5F2EB;font-family:Georgia,serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
+body{background:#FAFAFA;font-family:Georgia,serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
 input,button,select{font-family:Arial,sans-serif}
 ::-webkit-scrollbar{width:0}
 </style>
@@ -95,71 +95,76 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
 }
 
 // componentes base
-const Card=({children,style})=><div style={{background:"#FEFDFB",borderRadius:2,border:"1px solid #D8D4C8",padding:14,...style}}>{children}</div>;
-const Lbl=({c})=><div style={{fontSize:11,color:"#888880",marginBottom:4,marginTop:12,fontFamily:"Arial,sans-serif",letterSpacing:".3px"}}>{c}</div>;
+const Card=({children,style})=><div style={{background:"#fff",borderRadius:12,border:"1px solid #E8E8E8",padding:14,...style}}>{children}</div>;
+const Lbl=({c})=><div style={{fontSize:11,color:"#888",marginBottom:4,marginTop:12}}>{c}</div>;
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
   <div style={style}>
     {label&&<Lbl c={label}/>}
-    <input type={type==="number"?"text":type} inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
+    <input type={type==="number"?"text":type}
+      inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
       value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{width:"100%",border:"1px solid #C8C4B8",borderRadius:2,padding:"10px 12px",fontSize:16,background:"#FEFDFB",outline:"none",boxSizing:"border-box",color:"#1A1A1A"}}/>
+      style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
   </div>
 );
 // Input moeda — digita 10000 vira R$ 100,00
 const InpMoeda=({label,value,onChange})=>{
-  const handle=(e)=>{const digits=e.target.value.replace(/\D/g,"").slice(0,10);const num=parseInt(digits||"0",10)/100;onChange(num);};
+  const handle=(e)=>{
+    const digits=e.target.value.replace(/\D/g,"").slice(0,10);
+    const num=parseInt(digits||"0",10)/100;
+    onChange(num);
+  };
   const display=value!=null&&value!==""?Number(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"";
   return(
     <div>
       {label&&<Lbl c={label}/>}
       <input type="text" inputMode="numeric" value={display} onChange={handle} placeholder="0,00"
-        style={{width:"100%",border:"1px solid #C8C4B8",borderRadius:2,padding:"10px 12px",fontSize:16,background:"#FEFDFB",outline:"none",boxSizing:"border-box",color:"#1A1A1A"}}/>
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
     </div>
   );
 };
 const InpHora=({label,value,onChange})=>{
   const handle=(e)=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);onChange(v);};
   return(<div><Lbl c={label}/><input type="text" inputMode="numeric" value={value??""} onChange={handle} placeholder="08:00" maxLength={5}
-    style={{width:"100%",border:"1px solid #C8C4B8",borderRadius:2,padding:"10px 12px",fontSize:16,background:"#FEFDFB",outline:"none",boxSizing:"border-box",color:"#1A1A1A"}}/></div>);
+    style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/></div>);
 };
 const Btn=({children,onClick,sec,disabled,style})=>(
   <button onClick={onClick} disabled={disabled}
-    style={{padding:"11px 16px",borderRadius:2,border:"1px solid #C8C4B8",background:sec?"#F5F2EB":"#1A1A1A",
-      color:sec?"#444440":"#F5F2EB",fontSize:14,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,width:"100%",...style}}>
+    style={{padding:"11px 16px",borderRadius:8,border:sec?"1px solid #DDD":"none",background:sec?"#F5F5F5":"#1A1A1A",
+      color:sec?"#444":"#fff",fontSize:14,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.6:1,width:"100%",...style}}>
     {children}
   </button>
 );
-// Badge — cor só para comparação vs meta
 const Badge=({ok,children})=>(
-  <span style={{fontSize:10,padding:"2px 6px",borderRadius:1,background:"transparent",border:`1px solid ${ok?"#2E7D32":"#C62828"}`,color:ok?"#2E7D32":"#C62828",fontWeight:700,fontFamily:"Arial,sans-serif"}}>{children}</span>
+  <span style={{fontSize:10,padding:"2px 7px",borderRadius:4,background:ok?"#E8F5E9":"#FFEBEE",color:ok?"#2E7D32":"#C62828",fontWeight:600}}>{children}</span>
 );
 function Toast({msg,tipo}){
   if(!msg)return null;
-  return<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:"#1A1A1A",color:"#F5F2EB",padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px rgba(0,0,0,0.4)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
+  return<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:tipo==="erro"?"#C62828":"#2E7D32",color:"#fff",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 4px 12px rgba(0,0,0,0.2)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
-// IE — linha fina, número colorido só por ser vs meta
 function IEBar({label,real,meta,valor}){
   const ie=meta>0?real/meta:0;const ok=ie>=1;
-  return<div style={{marginBottom:14}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
-      <span style={{fontSize:12,color:"#666660",fontFamily:"Arial,sans-serif"}}>{label}</span>
-      <span style={{fontSize:14,fontWeight:700,color:ok?"#2E7D32":"#C62828",fontFamily:"Arial,sans-serif"}}>{valor} <span style={{fontSize:10,fontWeight:400}}>IE {fmt(ie)}</span></span>
+  return<div style={{marginBottom:12}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+      <span style={{fontSize:12,color:"#555"}}>{label} <b style={{color:"#222"}}>{valor}</b></span>
+      <Badge ok={ok}>IE {fmt(ie)} {ok?"✓":"✗"}</Badge>
     </div>
-    <div style={{height:1,background:"#D8D4C8"}}>
-      <div style={{height:"100%",width:Math.min(100,ie*60)+"%",background:ok?"#2E7D32":"#C62828",transition:"width .5s"}}/>
+    <div style={{height:6,borderRadius:3,background:"#EEE"}}>
+      <div style={{height:"100%",width:Math.min(100,ie*60)+"%",borderRadius:3,background:ok?"#4CAF50":"#EF5350",transition:"width .5s"}}/>
     </div>
   </div>;
 }
-// BarChart — estilo Kindle: barras cinza escuro, valores em preto
-function BarChart({data}){
+function BarChart({data,color="#4CAF50"}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
-  const fmtBar=(v)=>{if(v>=1000)return"R$"+Math.round(v/1000*10)/10+"k";return"R$"+Math.round(v);};
-  return<div style={{display:"flex",alignItems:"flex-end",gap:3,height:100,padding:"0 2px"}}>
+  const fmtBar=(v)=>{
+    if(v>=1000)return"R$"+Math.round(v/1000*10)/10+"k";
+    return"R$"+Math.round(v);
+  };
+  return<div style={{display:"flex",alignItems:"flex-end",gap:4,height:100,padding:"0 2px"}}>
     {data.map((d,i)=>(
       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-        <div style={{fontSize:8,color:"#444440",fontWeight:600,textAlign:"center",lineHeight:1.2,fontFamily:"Arial,sans-serif"}}>{d.v>0?fmtBar(d.v):""}</div>
-        <div style={{width:"100%",height:Math.max(3,(Math.abs(d.v)/max)*62),background:d.v>=0?"#3A3A38":"#888880",borderRadius:"1px 1px 0 0"}}/>
-        <div style={{fontSize:8,color:"#888880",textAlign:"center",fontFamily:"Arial,sans-serif"}}>{d.l}</div>
+        <div style={{fontSize:8,color,fontWeight:700,textAlign:"center",lineHeight:1.1}}>{d.v>0?fmtBar(d.v):""}</div>
+        <div style={{width:"100%",height:Math.max(4,(Math.abs(d.v)/max)*65),background:d.v>=0?color:"#EF5350",borderRadius:"4px 4px 0 0",opacity:0.85}}/>
+        <div style={{fontSize:8,color:"#999",textAlign:"center"}}>{d.l}</div>
       </div>
     ))}
   </div>;
@@ -200,9 +205,9 @@ function TelaAuth({onLogado}){
     <div style={{display:"flex",flexDirection:"column",justifyContent:"center",flex:1,padding:"32px 24px",overflowY:"auto"}}>
       <Toast msg={msg} tipo={msgTipo}/>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{width:64,height:64,background:"#F5F2EB",border:"1px solid #E0E0E0",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>🚗</div>
-        <h1 style={{fontSize:28,fontWeight:700,color:"#1A1A1A",margin:0}}>Por km</h1>
-        <p style={{color:"#888880",fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
+        <div style={{width:64,height:64,background:"#F5F5F5",border:"1px solid #E0E0E0",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>🚗</div>
+        <h1 style={{fontSize:28,fontWeight:700,color:"#111",margin:0}}>Por km</h1>
+        <p style={{color:"#888",fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<Inp label="Seu nome" value={nome} onChange={setNome} placeholder="João Silva"/>}
       <Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com"/>
@@ -212,12 +217,12 @@ function TelaAuth({onLogado}){
           :<Btn onClick={cadastrar} disabled={loading}>{loading?"Criando conta...":"Criar minha conta"}</Btn>}
       </div>
       <button onClick={()=>setModo(modo==="login"?"cadastro":"login")}
-        style={{marginTop:12,background:"none",border:"1px solid #D8D4C8",borderRadius:8,padding:11,fontSize:13,color:"#444440",cursor:"pointer",width:"100%"}}>
+        style={{marginTop:12,background:"none",border:"1px solid #DDD",borderRadius:8,padding:11,fontSize:13,color:"#555",cursor:"pointer",width:"100%"}}>
         {modo==="login"?"Criar conta grátis":"Já tenho conta — Entrar"}
       </button>
       {modo==="login"&&(
         <button onClick={recuperarSenha} disabled={loading}
-          style={{marginTop:8,background:"none",border:"none",fontSize:12,color:"#888880",cursor:"pointer",width:"100%",padding:"6px 0"}}>
+          style={{marginTop:8,background:"none",border:"none",fontSize:12,color:"#AAA",cursor:"pointer",width:"100%",padding:"6px 0"}}>
           Esqueci minha senha
         </button>
       )}
@@ -230,9 +235,9 @@ function TelaAguardando({onSair}){
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}>
       <div style={{fontSize:56,marginBottom:20}}>⏳</div>
-      <h2 style={{fontSize:20,fontWeight:700,color:"#1A1A1A",marginBottom:12}}>Conta em análise</h2>
-      <p style={{fontSize:14,color:"#666660",lineHeight:1.7,marginBottom:24}}>Sua conta foi criada! Aguarde a ativação pelo administrador.</p>
-      <button onClick={onSair} style={{background:"none",border:"1px solid #D8D4C8",borderRadius:8,padding:"10px 24px",fontSize:13,color:"#888880",cursor:"pointer"}}>Sair</button>
+      <h2 style={{fontSize:20,fontWeight:700,color:"#111",marginBottom:12}}>Conta em análise</h2>
+      <p style={{fontSize:14,color:"#666",lineHeight:1.7,marginBottom:24}}>Sua conta foi criada! Aguarde a ativação pelo administrador.</p>
+      <button onClick={onSair} style={{background:"none",border:"1px solid #DDD",borderRadius:8,padding:"10px 24px",fontSize:13,color:"#888",cursor:"pointer"}}>Sair</button>
     </div>
   );
 }
@@ -242,7 +247,7 @@ function TelaConfig({cfg,userId,onSalvo}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
-  const G=({t})=><p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",margin:"20px 0 8px"}}>{t}</p>;
+  const G=({t})=><p style={{fontSize:11,fontWeight:700,color:"#1A56A0",textTransform:"uppercase",letterSpacing:1,margin:"20px 0 8px"}}>{t}</p>;
   const salvar=async()=>{
     setLoading(true);
     const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:form.usar_media_comb===true||form.usar_media_comb==="true"};
@@ -265,7 +270,7 @@ function TelaConfig({cfg,userId,onSalvo}){
       <G t="Ciclo financeiro"/>
       <Lbl c="Dia de início do ciclo (ex: 12 para ciclo do dia 12 ao dia 11)"/>
       <input type="number" inputMode="numeric" value={form.dia_ciclo??1} onChange={e=>setForm(p=>({...p,dia_ciclo:e.target.value}))} min="1" max="28"
-        style={{width:"100%",border:"1px solid #D8D4C8",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#F5F2EB",outline:"none",boxSizing:"border-box"}}/>
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
       <G t="Custos fixos mensais"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Parcela do carro (R$)" type="number" {...f("parcela")}/>
@@ -284,15 +289,15 @@ function TelaConfig({cfg,userId,onSalvo}){
         <Inp label="Autonomia fixa (km/L)" type="number" {...f("autonomia")}/>
         <Inp label="Preço do litro (R$)" type="number" {...f("preco_litro")}/>
       </div>
-      <div style={{marginTop:14,background:"#F0F4FF",borderRadius:2,padding:12,border:"1px solid #D8D4C8"}}>
+      <div style={{marginTop:14,background:"#F0F4FF",borderRadius:10,padding:12,border:"1px solid #C5D8FF"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <p style={{fontSize:13,fontWeight:600,color:"#888880"}}>Usar média real dos abastecimentos</p>
-            <p style={{fontSize:11,color:"#666660",marginTop:3}}>Calcula a autonomia com base nos seus abastecimentos do ciclo</p>
+            <p style={{fontSize:13,fontWeight:600,color:"#1A56A0"}}>Usar média real dos abastecimentos</p>
+            <p style={{fontSize:11,color:"#666",marginTop:3}}>Calcula a autonomia com base nos seus abastecimentos do ciclo</p>
           </div>
           <div onClick={()=>setForm(p=>({...p,usar_media_comb:!p.usar_media_comb}))}
-            style={{width:44,height:24,borderRadius:2,background:form.usar_media_comb?"#1A1A1A":"#C8C4B8",position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}>
-            <div style={{position:"absolute",top:2,left:form.usar_media_comb?20:2,width:20,height:20,borderRadius:"50%",background:"#FEFDFB",transition:"left .2s"}}/>
+            style={{width:44,height:24,borderRadius:12,background:form.usar_media_comb?"#1A56A0":"#CCC",position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}>
+            <div style={{position:"absolute",top:2,left:form.usar_media_comb?20:2,width:20,height:20,borderRadius:"50%",background:"#FFF",transition:"left .2s"}}/>
           </div>
         </div>
       </div>
@@ -305,8 +310,8 @@ function TelaConfig({cfg,userId,onSalvo}){
 function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});
   return(
-    <Card style={{border:"1px solid #C8C4B8",marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:"#1A1A1A"}}>🟢 Abrindo {form.num}º turno</p>
+    <Card style={{border:"2px solid #4CAF50",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:"#2E7D32"}}>🟢 Abrindo {form.num}º turno</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
         <Inp label="Nº do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
@@ -324,7 +329,7 @@ function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
 // SEÇÃO APP — fora do FormFecharTurno para não recriar a cada digitação
 function SecaoApp({titulo,cor,corFundo,dados,setDados,temBonus=true}){
   return(
-    <div style={{border:`2px solid ${cor}`,borderRadius:2,padding:12,marginTop:10,background:"#FEFDFB"}}>
+    <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
       <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
         <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
@@ -349,9 +354,9 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   const hrs=horasDiff(turno.h_i,h_f);
 
   return(
-    <Card style={{border:"1px solid #C8C4B8",marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:"#1A1A1A"}}>🔴 Encerrando {turno.num}º turno</p>
-      <p style={{fontSize:11,color:"#888880",marginBottom:8}}>Iniciado às {turno.h_i} · KM inicial: {turno.km_i}</p>
+    <Card style={{border:"2px solid #FF9800",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:"#E65100"}}>🔴 Encerrando {turno.num}º turno</p>
+      <p style={{fontSize:11,color:"#888",marginBottom:8}}>Iniciado às {turno.h_i} · KM inicial: {turno.km_i}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
         <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
@@ -359,13 +364,13 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
 
       <SecaoApp titulo="⚫ Uber" cor="#000000" corFundo="#F5F5F5" dados={uber} setDados={setUber}/>
       <SecaoApp titulo="🟡 99" cor="#F5A800" corFundo="#FFFBF0" dados={nov} setDados={setNov}/>
-      <SecaoApp titulo="🔵 Particular" cor="#444440" corFundo="#F5F2EB" dados={part} setDados={setPart} temBonus={false}/>
+      <SecaoApp titulo="🔵 Particular" cor="#1565C0" corFundo="#EEF4FF" dados={part} setDados={setPart} temBonus={false}/>
 
       {/* Totais calculados */}
       {(totalBruto>0||totalViagens>0)&&(
-        <div style={{marginTop:12,background:"#FEFDFB",borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+        <div style={{marginTop:12,background:"#F1F8E9",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
           {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Total bruto",fmtR(totalBruto)],["Total viagens",totalViagens+"v"],["Uber",parseN(uber.viagens)+"v · "+fmtR(parseN(uber.bruto)+parseN(uber.bonus))],["99 + Part.",parseN(nov.viagens)+parseN(part.viagens)+"v · "+fmtR(parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto))]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:13,fontWeight:700,color:"#1A1A1A"}}>{v}</div><div style={{fontSize:9,color:"#666660"}}>{l}</div></div>
+            <div key={l}><div style={{fontSize:13,fontWeight:700,color:"#2E7D32"}}>{v}</div><div style={{fontSize:9,color:"#666"}}>{l}</div></div>
           ))}
         </div>
       )}
@@ -419,8 +424,6 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null);
   const[editando,setEditando]=useState(null);
   const[loading,setLoading]=useState(false);
-  const[aiMsg,setAiMsg]=useState("");
-  const[loadingAI,setLoadingAI]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
@@ -486,48 +489,38 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
-    const totK=turnosHoje.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-    const totV=turnosHoje.reduce((s,t)=>s+parseN(t.viagens),0);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:`Consultor financeiro de motoristas. Em português (3-4 frases). Dia: ${turnosHoje.length} turno(s), R$${totB.toFixed(2)} bruto, ${totK}km, ${totV} viagens. Metas: R$${cfg.meta_km}/km, R$${cfg.meta_hora}/h. Avalie e dê 1 dica.`}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Não foi possível conectar à IA.");}
-    setLoadingAI(false);
-  },[turnosHoje,cfg]);
+
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
     const{k,h,b,bonus,lucro,r_km,r_hr}=calcT(t);
     const okKm=r_km>=parseN(cfg.meta_km);const okHr=r_hr>=parseN(cfg.meta_hora);
     return(
-      <Card style={{marginBottom:8,borderLeft:"2px solid #D8D4C8"}}>
+      <Card style={{marginBottom:8,borderLeft:`3px solid ${aberto?"#FF9800":"#4CAF50"}`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <span style={{fontSize:13,fontWeight:600}}>{aberto?"🟡":"🕐"} {t.num}º Turno — {dataFmt(t.data)}</span>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {aberto?<span style={{fontSize:10,background:"transparent",color:"#888880",padding:"2px 5px",borderRadius:1,fontWeight:600,border:"1px solid #D8D4C8"}}>Em aberto</span>:<Badge ok={lucro>0}>{lucro>0?"✓":"✗"}</Badge>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F2EB",border:"1px solid #C8C4B8",borderRadius:1,cursor:"pointer",color:"#444440"}}>✏️</button>
-            <button onClick={()=>excluirTurno(t)} style={{fontSize:11,padding:"3px 8px",background:"#F5F2EB",border:"1px solid #C8C4B8",borderRadius:1,cursor:"pointer",color:"#888880"}}>🗑️</button>
+            {aberto?<span style={{fontSize:10,background:"#FFF3E0",color:"#E65100",padding:"2px 7px",borderRadius:4,fontWeight:600}}>Em aberto</span>:<Badge ok={lucro>0}>{lucro>0?"✓":"✗"}</Badge>}
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F5F5",border:"1px solid #DDD",borderRadius:6,cursor:"pointer",color:"#555"}}>✏️</button>
+            <button onClick={()=>excluirTurno(t)} style={{fontSize:11,padding:"3px 8px",background:"#FFEBEE",border:"1px solid #FFCDD2",borderRadius:6,cursor:"pointer",color:"#C62828"}}>🗑️</button>
           </div>
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888880"}}>KM inicial · Hora início</span><b>{t.km_i} · {t.h_i||"—"}</b></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM inicial · Hora início</span><b>{t.km_i} · {t.h_i||"—"}</b></div>
         {!aberto&&<>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888880"}}>KM rodado · Horas</span><b>{k} km · {fmt(h,1)}h</b></div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888880"}}>Viagens · Bruto</span><b>{t.viagens} · {fmtR(b)}</b></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM rodado · Horas</span><b>{k} km · {fmt(h,1)}h</b></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Viagens · Bruto</span><b>{t.viagens} · {fmtR(b)}</b></div>
           {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}>
-            <span style={{color:"#888880",fontWeight:600}}>🎯 Bônus (não conta no turno)</span><b style={{color:"#1A1A1A"}}>{fmtR(bonus)}</b>
+            <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus (não conta no turno)</span><b style={{color:"#1565C0"}}>{fmtR(bonus)}</b>
           </div>}
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888880"}}>Lucro est.</span><b style={{color:lucro>0?"#2E7D32":"#C62828"}}>{fmtR(lucro)}</b></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #EAE7E0"}}>
-            <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"4px 6px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Lucro est.</span><b style={{color:lucro>0?"#2E7D32":"#C62828"}}>{fmtR(lucro)}</b></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #F0F0F0"}}>
+            <div style={{textAlign:"center",background:okKm?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"4px 6px"}}>
               <div style={{fontSize:12,fontWeight:700,color:okKm?"#2E7D32":"#C62828"}}>{fmtR(r_km)}/km</div>
-              <div style={{fontSize:9,color:"#888880"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+              <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
             </div>
-            <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"4px 6px"}}>
+            <div style={{textAlign:"center",background:okHr?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"4px 6px"}}>
               <div style={{fontSize:12,fontWeight:700,color:okHr?"#2E7D32":"#C62828"}}>{fmtR(r_hr)}/h</div>
-              <div style={{fontSize:9,color:"#888880"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+              <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
             </div>
           </div>
         </>}
@@ -538,18 +531,18 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       {turnos.length>0&&<>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Suas médias gerais</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Suas médias gerais</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
           {[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(
-            <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1A1A1A"}}>{v}</div><div style={{fontSize:10,color:"#888880",marginTop:2}}>{l}</div></Card>
+            <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1A56A0"}}>{v}</div><div style={{fontSize:10,color:"#999",marginTop:2}}>{l}</div></Card>
           ))}
         </div>
       </>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <p style={{fontSize:13,fontWeight:600}}>Hoje, {dataFmt(hoje())}</p>
         {!turnoAberto
-          ?<button onClick={()=>setModo(modo==="abrir"?null:"abrir")} style={{padding:"9px 16px",background:"#1A1A1A",color:"#F5F2EB",border:"1px solid #1A1A1A",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>🟢 Abrir turno</button>
-          :<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:"#F5F2EB",color:"#1A1A1A",border:"1px solid #1A1A1A",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>🔴 Fechar turno</button>
+          ?<button onClick={()=>setModo(modo==="abrir"?null:"abrir")} style={{padding:"9px 16px",background:"#2E7D32",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>🟢 Abrir turno</button>
+          :<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:"#E65100",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>🔴 Fechar turno</button>
         }
       </div>
       {modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
@@ -558,7 +551,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         inicial={{data:editando.data,num:editando.num,km_i:editando.km_i,km_f:editando.km_f||"",h_i:editando.h_i||"",h_f:editando.h_f||"",bruto:editando.bruto||"",viagens:editando.viagens||"",bonus:editando.bonus||"0"}}
         onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
       {turnosHoje.length===0&&!modo&&!editando&&(
-        <div style={{textAlign:"center",padding:"24px 20px",color:"#888880",background:"#F5F2EB",borderRadius:2,marginBottom:14}}>
+        <div style={{textAlign:"center",padding:"24px 20px",color:"#AAA",background:"#F9F9F9",borderRadius:10,marginBottom:14}}>
           <div style={{fontSize:32,marginBottom:8}}>📋</div>
           <p style={{fontSize:13}}>Nenhum turno hoje ainda.</p>
           <p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para começar.</p>
@@ -568,50 +561,39 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
       {/* Card resumo do dia */}
       {turnosHojeFechados.length>0&&(
-        <Card style={{marginBottom:12,background:"#FEFDFB",border:"1px solid #D8D4C8"}}>
-          <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",fontFamily:"Arial,sans-serif",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+        <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+          <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-            <div style={{background:"#FEFDFB",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:18,fontWeight:700,color:"#1A1A1A"}}>{fmtR(totalDiaBruto)}</div>
-              <div style={{fontSize:10,color:"#888880"}}>Bruto total c/ bônus</div>
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#2E7D32"}}>{fmtR(totalDiaBruto)}</div>
+              <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
             </div>
-            <div style={{background:"#FEFDFB",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:16,fontWeight:700,color:"#1A1A1A"}}>{resumoDia.viagens} viagens</div>
-              <div style={{fontSize:10,color:"#888880"}}>{resumoDia.km} km · {fmt(resumoDia.hrs,1)}h</div>
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#444"}}>{resumoDia.viagens} viagens</div>
+              <div style={{fontSize:10,color:"#888"}}>{resumoDia.km} km · {fmt(resumoDia.hrs,1)}h</div>
             </div>
           </div>
           {resumoDia.bonus>0&&(
-            <div style={{background:"#F5F2EB",borderRadius:2,padding:"6px 10px",marginBottom:8,border:"1px solid #D8D4C8",display:"flex",justifyContent:"space-between",fontSize:12}}>
-              <span style={{color:"#1A1A1A",fontWeight:600}}>🎯 Total de bônus do dia</span>
-              <b style={{color:"#1A1A1A"}}>{fmtR(resumoDia.bonus)}</b>
+            <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+              <span style={{color:"#1565C0",fontWeight:600}}>🎯 Total de bônus do dia</span>
+              <b style={{color:"#1565C0"}}>{fmtR(resumoDia.bonus)}</b>
             </div>
           )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-            <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"6px",border:"1px solid #D8D4C8"}}>
+            <div style={{textAlign:"center",background:diaRkm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
               <div style={{fontSize:14,fontWeight:700,color:diaRkm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(diaRkm)}/km</div>
-              <div style={{fontSize:9,color:"#888880"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_km))}/km</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_km))}/km</div>
             </div>
-            <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"6px",border:"1px solid #D8D4C8"}}>
+            <div style={{textAlign:"center",background:diaRhr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
               <div style={{fontSize:14,fontWeight:700,color:diaRhr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(diaRhr)}/h</div>
-              <div style={{fontSize:9,color:"#888880"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_hora))}/h</div>
             </div>
           </div>
         </Card>
       )}
-      {turnosHoje.filter(t=>t.bruto>0).length>0&&(
-        <div style={{background:"#F1EFE8",borderRadius:2,padding:14,marginTop:4,marginBottom:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:"#444440"}}>✨ Análise do dia — IA</span>
-            <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",opacity:loadingAI?0.6:1}}>
-              {loadingAI?"Analisando...":"Analisar ↗"}
-            </button>
-          </div>
-          {aiMsg?<p style={{fontSize:12,color:"#444440",lineHeight:1.7}}>{aiMsg}</p>:<p style={{fontSize:12,color:"#888880",fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu dia.</p>}
-        </div>
-      )}
       {turnosAnt.length>0&&(
         <>
-          <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",margin:"16px 0 8px"}}>Histórico</p>
+          <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
           {/* Agrupa turnos por data */}
           {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
             const turnosDia=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
@@ -626,35 +608,35 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
             const rHr=resumo.hrs>0?totBruto/resumo.hrs:0;
             return(
               <div key={data}>
-                <p style={{fontSize:11,fontWeight:700,color:"#888880",margin:"12px 0 6px",fontFamily:"Arial,sans-serif",textTransform:"uppercase",letterSpacing:1}}>📅 {dataFmt(data)}</p>
+                <p style={{fontSize:11,fontWeight:600,color:"#1A56A0",margin:"12px 0 6px"}}>📅 {dataFmt(data)}</p>
                 {turnosDia.map(t=><CardTurno key={t.id} t={t}/>)}
                 {fechados.length>0&&(
-                  <Card style={{marginBottom:12,background:"#FEFDFB",border:"1px solid #D8D4C8"}}>
-                    <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",fontFamily:"Arial,sans-serif",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+                  <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+                    <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-                      <div style={{background:"#FEFDFB",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
-                        <div style={{fontSize:17,fontWeight:700,color:"#1A1A1A"}}>{fmtR(totBruto)}</div>
-                        <div style={{fontSize:10,color:"#888880"}}>Bruto total c/ bônus</div>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#2E7D32"}}>{fmtR(totBruto)}</div>
+                        <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
                       </div>
-                      <div style={{background:"#FEFDFB",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
-                        <div style={{fontSize:16,fontWeight:800,color:"#444440"}}>{resumo.viagens}v · {resumo.km}km</div>
-                        <div style={{fontSize:10,color:"#888880"}}>{fmt(resumo.hrs,1)}h trabalhadas</div>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#444"}}>{resumo.viagens}v · {resumo.km}km</div>
+                        <div style={{fontSize:10,color:"#888"}}>{fmt(resumo.hrs,1)}h trabalhadas</div>
                       </div>
                     </div>
                     {resumo.bonus>0&&(
-                      <div style={{background:"#F5F2EB",borderRadius:2,padding:"6px 10px",marginBottom:8,border:"1px solid #D8D4C8",display:"flex",justifyContent:"space-between",fontSize:12}}>
-                        <span style={{color:"#444440",fontWeight:600}}>🎯 Bônus do dia</span>
-                        <b style={{color:"#1A1A1A"}}>{fmtR(resumo.bonus)}</b>
+                      <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+                        <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus do dia</span>
+                        <b style={{color:"#1565C0"}}>{fmtR(resumo.bonus)}</b>
                       </div>
                     )}
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                      <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"6px",border:"1px solid #D8D4C8"}}>
+                      <div style={{textAlign:"center",background:rKm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
                         <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(rKm)}/km</div>
-                        <div style={{fontSize:9,color:"#888880"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
                       </div>
-                      <div style={{textAlign:"center",background:"#FEFDFB",borderRadius:1,padding:"6px",border:"1px solid #D8D4C8"}}>
+                      <div style={{textAlign:"center",background:rHr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
                         <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(rHr)}/h</div>
-                        <div style={{fontSize:9,color:"#888880"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
                       </div>
                     </div>
                   </Card>
@@ -681,10 +663,10 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
     <Card style={{border:"1px dashed #CCC",marginBottom:14}}>
       <p style={{fontSize:13,fontWeight:600,marginBottom:8}}>{titulo}</p>
       <Lbl c="Tipo de combustível"/>
-      <div style={{display:"flex",border:"1px solid #C8C4B8",borderRadius:2,overflow:"hidden",marginBottom:4}}>
+      <div style={{display:"flex",border:"1px solid #DDD",borderRadius:8,overflow:"hidden",marginBottom:4}}>
         {[["Gasolina","⛽"],["Álcool","🌿"],["GNV","🔵"]].map(([t,ic])=>(
           <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}
-            style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?"#1A1A1A":"#FEFDFB",color:dados.tipo===t?"#FFF":"#555",fontWeight:dados.tipo===t?600:400}}>
+            style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?"#1A1A1A":"#FFF",color:dados.tipo===t?"#FFF":"#555",fontWeight:dados.tipo===t?600:400}}>
             {ic} {t}
           </button>
         ))}
@@ -696,13 +678,13 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
         <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
       </div>
       {kmlF>0&&(
-        <div style={{marginTop:10,background:"#F5F2EB",borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+        <div style={{marginTop:10,background:"#E3F2FD",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
           {[[labelCalc,fmt(kmlF)],[`R$/${isGNV?"m³":"km"}`,"R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#1A1A1A"}}>{v}</div><div style={{fontSize:10,color:"#666660"}}>{l}</div></div>
+            <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#666"}}>{l}</div></div>
           ))}
         </div>
       )}
-      <p style={{fontSize:11,color:"#888880",textAlign:"center",marginTop:8,fontStyle:"italic"}}>{labelCalc} = km rodado ÷ {isGNV?"m³":"litros"}</p>
+      <p style={{fontSize:11,color:"#999",textAlign:"center",marginTop:8,fontStyle:"italic"}}>{labelCalc} = km rodado ÷ {isGNV?"m³":"litros"}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
@@ -738,24 +720,24 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={{fontSize:12,color:"#888880"}}>Controle de consumo</p>
+        <p style={{fontSize:12,color:"#888"}}>Controle de consumo</p>
         <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:"#1A1A1A",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
         {[["Média km/L",fmt(media)],["Custo médio/km","R$"+fmt(mediaCkm,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
-          <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1A1A1A"}}>{v}</div><div style={{fontSize:10,color:"#888880",marginTop:2}}>{l}</div></Card>
+          <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#999",marginTop:2}}>{l}</div></Card>
         ))}
       </div>
       {abastecimentos.length>1&&(
         <Card style={{marginBottom:14}}>
-          <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Evolução km/L (ou km/m³)</p>
-          <BarChart data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
+          <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Evolução km/L (ou km/m³)</p>
+          <BarChart color="#1565C0" data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
         </Card>
       )}
       {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
       {editando&&<FormAbast titulo={`Editar — ${dataFmt(editando.data)}`} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
-      <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Histórico</p>
-      {abastecimentos.length===0&&<p style={{color:"#888880",textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Histórico</p>
+      {abastecimentos.length===0&&<p style={{color:"#AAA",textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
       {abastecimentos.map(a=>{
         const kmlA=parseN(a.litros)>0?parseN(a.km_rod)/parseN(a.litros):0;
         const ic=a.tipo==="Gasolina"?"⛽":a.tipo==="Álcool"?"🌿":"🔵";
@@ -765,15 +747,15 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:13,fontWeight:600}}>{dataFmt(a.data)}</span>
-                <span style={{fontSize:11,padding:"2px 8px",borderRadius:2,border:"1px solid #D8D4C8",color:"#666660"}}>{ic} {a.tipo}</span>
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"1px solid #EEE",color:"#666"}}>{ic} {a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F2EB",border:"1px solid #C8C4B8",borderRadius:1,cursor:"pointer",color:"#444440"}}>✏️</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F5F5",border:"1px solid #DDD",borderRadius:6,cursor:"pointer",color:"#555"}}>✏️</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un.replace("L","L"),fmt(kmlA)]].map(([l,v],i)=>(
                 <div key={l} style={{textAlign:"center",borderRight:i<3?"1px solid #F0F0F0":"none"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?"#2E7D32":"#C62828"):"#1A1A1A"}}>{v}</div>
-                  <div style={{fontSize:10,color:"#888880"}}>{l}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?"#2E7D32":"#C62828"):"#222"}}>{v}</div>
+                  <div style={{fontSize:10,color:"#999"}}>{l}</div>
                 </div>
               ))}
             </div>
@@ -828,7 +810,7 @@ function TelaComparativo({turnos,cfg}){
   },[turnos]);
   const[semA,setSemA]=useState(0);const[semB,setSemB]=useState(1);const[metrica,setMetrica]=useState("r_km");
   if(semanas.length<2)return(
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#888880",flexDirection:"column",gap:12}}>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#AAA",flexDirection:"column",gap:12}}>
       <div style={{fontSize:40}}>📊</div><p style={{fontSize:14}}>Registre pelo menos 2 semanas para comparar.</p>
     </div>
   );
@@ -846,25 +828,25 @@ function TelaComparativo({turnos,cfg}){
   const diasA=getSemDias(semA);const diasB=getSemDias(semB);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:12}}>Comparar semanas</p>
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Comparar semanas</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div><Lbl c="Semana A (azul)"/>
-          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #D8D4C8",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#F5F2EB",outline:"none"}}>
+          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#FAFAFA",outline:"none"}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
         <div><Lbl c="Semana B (verde)"/>
-          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #D8D4C8",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#F5F2EB",outline:"none"}}>
+          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#FAFAFA",outline:"none"}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["r_km","R$/km"],["r_hr","R$/hora"],["bruto","Bruto"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setMetrica(v)} style={{padding:"7px 10px",borderRadius:7,border:"1px solid #C8C4B8",background:metrica===v?"#1A1A1A":"#FEFDFB",color:metrica===v?"#FFF":"#555",fontSize:12,fontWeight:600,cursor:"pointer",flex:1}}>{l}</button>
+          <button key={v} onClick={()=>setMetrica(v)} style={{padding:"7px 10px",borderRadius:7,border:"1px solid #DDD",background:metrica===v?"#1A1A1A":"#FFF",color:metrica===v?"#FFF":"#555",fontSize:12,fontWeight:600,cursor:"pointer",flex:1}}>{l}</button>
         ))}
       </div>
       {/* Gráfico */}
       <Card style={{marginBottom:14}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:10}}>{metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"} — dia a dia</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"} — dia a dia</p>
         <div style={{display:"flex",gap:4}}>
           {DIAS.map(ds=>{
             const dA=diasA.find(d=>d.ds===ds);const dB=diasB.find(d=>d.ds===ds);
@@ -873,24 +855,24 @@ function TelaComparativo({turnos,cfg}){
             return(
               <div key={ds} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                 <div style={{width:"100%",display:"flex",gap:2,alignItems:"flex-end",height:70}}>
-                  <div style={{flex:1,height:Math.max(2,(vA/max)*65),background:"#1A1A1A",borderRadius:"3px 3px 0 0",opacity:0.85}}/>
-                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:"#888880",borderRadius:"1px 1px 0 0"}}/>
+                  <div style={{flex:1,height:Math.max(2,(vA/max)*65),background:"#1565C0",borderRadius:"3px 3px 0 0",opacity:0.85}}/>
+                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:"#4CAF50",borderRadius:"3px 3px 0 0",opacity:0.85}}/>
                 </div>
-                <div style={{fontSize:8,color:"#888880"}}>{ds}</div>
+                <div style={{fontSize:8,color:"#999"}}>{ds}</div>
               </div>
             );
           })}
         </div>
         <div style={{display:"flex",gap:16,marginTop:10,justifyContent:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#1A1A1A",borderRadius:2}}/><span style={{fontSize:11,color:"#444440"}}>{semanas[semA]?.label}</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#3A3A38",borderRadius:2}}/><span style={{fontSize:11,color:"#444440"}}>{semanas[semB]?.label}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#1565C0",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semA]?.label}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#4CAF50",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semB]?.label}</span></div>
         </div>
       </Card>
       {/* Tabela dia a dia */}
       <Card style={{marginBottom:14}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:10}}>Detalhamento — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #EAE7E0"}}>
-          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:"#888880",textAlign:"center"}}>{h}</div>)}
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Detalhamento — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
+          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:"#888",textAlign:"center"}}>{h}</div>)}
         </div>
         {DIAS.map(ds=>{
           const dA=diasA.find(d=>d.ds===ds);const dB=diasB.find(d=>d.ds===ds);
@@ -899,30 +881,30 @@ function TelaComparativo({turnos,cfg}){
           const diff=vA&&vA>0&&vB!=null?((vB-vA)/vA)*100:null;
           return(
             <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid #F9F9F9",alignItems:"center"}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#1A1A1A",textAlign:"center"}}>{ds}</div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1A1A1A"}}>{vA&&vA>0?fmtR(vA):"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888880"}}>{dA?dA.viagens+"v":"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1A1A1A"}}>{vB&&vB>0?fmtR(vB):"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888880"}}>{dB?dB.viagens+"v":"—"}</span></div>
+              <div style={{fontSize:12,fontWeight:600,color:"#333",textAlign:"center"}}>{ds}</div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{vA&&vA>0?fmtR(vA):"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dA?dA.viagens+"v":"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{vB&&vB>0?fmtR(vB):"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dB?dB.viagens+"v":"—"}</span></div>
               <div style={{textAlign:"center"}}>
-                {diff!=null?<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"transparent",color:diff>=0?"#2E7D32":"#C62828"}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:"#CCC"}}>—</span>}
+                {diff!=null?<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:diff>=0?"#E8F5E9":"#FFEBEE",color:diff>=0?"#2E7D32":"#C62828"}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:"#CCC"}}>—</span>}
               </div>
             </div>
           );
         })}
         {/* Totais */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"1px solid #D8D4C8"}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#444440",textAlign:"center"}}>Méd.</div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1A1A1A"}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888880"}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1A1A1A"}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888880"}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#555",textAlign:"center"}}>Méd.</div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
           <div style={{textAlign:"center"}}>{(()=>{
             const mA=diasA.filter(d=>d[metrica]>0);const mB=diasB.filter(d=>d[metrica]>0);
             if(!mA.length||!mB.length)return<span style={{fontSize:10,color:"#CCC"}}>—</span>;
             const vA=mA.reduce((s,d)=>s+d[metrica],0)/mA.length;const vB=mB.reduce((s,d)=>s+d[metrica],0)/mB.length;
             const d=vA>0?((vB-vA)/vA)*100:0;
-            return<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"transparent",color:d>=0?"#2E7D32":"#C62828"}}>{d>=0?"+":""}{fmt(d,1)}%</span>;
+            return<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:d>=0?"#E8F5E9":"#FFEBEE",color:d>=0?"#2E7D32":"#C62828"}}>{d>=0?"+":""}{fmt(d,1)}%</span>;
           })()}</div>
         </div>
       </Card>
@@ -935,35 +917,35 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
   if(ciclos.length===0)return(
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#888880",flexDirection:"column",gap:12}}>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#AAA",flexDirection:"column",gap:12}}>
       <div style={{fontSize:40}}>🗂️</div><p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p>
     </div>
   );
   const ca=calcCiclo(cfg.dia_ciclo||1);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:12}}>Histórico de ciclos</p>
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Histórico de ciclos</p>
       {ciclos.map((c,i)=>{
         const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim);
         const ab=sel===i;const isAt=c.ini===ca.ini;
         return(
-          <Card key={i} style={{marginBottom:10,borderLeft:"2px solid #D8D4C8"}}>
+          <Card key={i} style={{marginBottom:10,borderLeft:`3px solid ${isAt?"#1A56A0":m.lucro>=0?"#4CAF50":"#EF5350"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setSel(ab?null:i)}>
               <div>
-                <p style={{fontSize:13,fontWeight:600}}>{c.label} {isAt&&<span style={{fontSize:10,background:"#F5F2EB",color:"#444440",padding:"1px 6px",borderRadius:4,marginLeft:4}}>atual</span>}</p>
+                <p style={{fontSize:13,fontWeight:600}}>{c.label} {isAt&&<span style={{fontSize:10,background:"#D6E4F7",color:"#1A56A0",padding:"1px 6px",borderRadius:4,marginLeft:4}}>atual</span>}</p>
                 <p style={{fontSize:12,color:m.lucro>=0?"#2E7D32":"#C62828",marginTop:2}}>{fmtR(m.lucro)} · {m.dias} dias</p>
               </div>
-              <span style={{color:"#888880",fontSize:16}}>{ab?"▲":"▼"}</span>
+              <span style={{color:"#AAA",fontSize:16}}>{ab?"▲":"▼"}</span>
             </div>
-            {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #EAE7E0"}}>
+            {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #F0F0F0"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                 {[["Bruto",fmtR(m.bruto)],["Lucro",fmtR(m.lucro)],["KM total",m.km_total+" km"],["Viagens",m.viagens]].map(([l,v])=>(
-                  <div key={l} style={{background:"#F5F2EB",borderRadius:2,padding:8,textAlign:"center"}}><div style={{fontSize:14,fontWeight:700}}>{v}</div><div style={{fontSize:10,color:"#888880"}}>{l}</div></div>
+                  <div key={l} style={{background:"#F9F9F9",borderRadius:8,padding:8,textAlign:"center"}}><div style={{fontSize:14,fontWeight:700}}>{v}</div><div style={{fontSize:10,color:"#999"}}>{l}</div></div>
                 ))}
               </div>
               {[["R$/km",fmtR(m.r_km)],["R$/hora",fmtR(m.r_hr)],["Custos fixos",fmtR(m.fixo)],["Custos variáveis",fmtR(m.custos_var)]].map(([l,v])=>(
-                <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid #EAE7E0"}}>
-                  <span style={{color:"#888880"}}>{l}</span><b>{v}</b>
+                <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid #F5F5F5"}}>
+                  <span style={{color:"#888"}}>{l}</span><b>{v}</b>
                 </div>
               ))}
             </div>}
@@ -979,7 +961,6 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const[dataIni,setDataIni]=useState(ca.ini);const[dataFim,setDataFim]=useState(ca.fim);
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
-  const[aiMsg,setAiMsg]=useState("");const[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
 
   // Função para extrair bruto/viagens/km/hrs de um turno por app
@@ -1027,12 +1008,12 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
 
   // Cores por app — ordem correta
   const appCores=[
-    {id:"total",bg:"#1A1A1A",fg:"#F5F2EB",label:"Total"},
+    {id:"total",bg:"#4CAF50",fg:"#fff",label:"Total"},
     {id:"uber",bg:"#1A1A1A",fg:"#fff",label:"Uber"},
     {id:"99",bg:"#F5A800",fg:"#1A1A1A",label:"99"},
-    {id:"part",bg:"#444440",fg:"#F5F2EB",label:"Particular"},
+    {id:"part",bg:"#1565C0",fg:"#fff",label:"Particular"},
   ];
-  const corAtual=appCores.find(a=>a.id===appFiltro)?.bg||"#1A1A1A";
+  const corAtual=appCores.find(a=>a.id===appFiltro)?.bg||"#4CAF50";
   const labelAtual=appCores.find(a=>a.id===appFiltro)?.label||"Total";
 
   // Semanas do ciclo filtradas por app
@@ -1052,53 +1033,45 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     return semanas;
   })();
 
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:`Consultor financeiro de motoristas. Em português (4-5 frases). Ciclo: bruto R$${mes.bruto.toFixed(2)}, custos R$${mes.custos.toFixed(2)}, lucro R$${mes.lucro.toFixed(2)}, ${mes.dias} dias, ${mes.viagens} viagens, ${mes.km_total}km. R$/km:${mes.r_km.toFixed(2)}(meta:${cfg.meta_km}), R$/hora:${mes.r_hr.toFixed(2)}(meta:${cfg.meta_hora}). Dê 2 sugestões práticas.`}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Não foi possível conectar à IA.");}
-    setLoadingAI(false);
-  },[mes,cfg]);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><p style={{fontSize:12,color:"#888880"}}>{mesTotal.dias} dias trabalhados</p><p style={{fontSize:11,color:"#1A1A1A",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p></div>
-          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?"#1A1A1A":"#F5F2EB",color:mostrarFiltro?"#F5F2EB":"#1A1A1A",border:"1px solid #C8C4B8",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>📅 Período</button>
+          <div><p style={{fontSize:12,color:"#888"}}>{mesTotal.dias} dias trabalhados</p><p style={{fontSize:11,color:"#1A56A0",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p></div>
+          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?"#1A1A1A":"#F0F4FF",color:mostrarFiltro?"#fff":"#1A56A0",border:"1px solid #C5D8FF",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>📅 Período</button>
         </div>
         {mostrarFiltro&&(
-          <div style={{marginTop:10,background:"#F0F4FF",borderRadius:2,padding:12,border:"1px solid #D8D4C8"}}>
+          <div style={{marginTop:10,background:"#F0F4FF",borderRadius:10,padding:12,border:"1px solid #C5D8FF"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><Lbl c="Data início"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{width:"100%",border:"1px solid #C8C4B8",borderRadius:2,padding:"9px 10px",fontSize:13,background:"#FEFDFB",outline:"none",boxSizing:"border-box"}}/></div>
-              <div><Lbl c="Data fim"/><input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={{width:"100%",border:"1px solid #C8C4B8",borderRadius:2,padding:"9px 10px",fontSize:13,background:"#FEFDFB",outline:"none",boxSizing:"border-box"}}/></div>
+              <div><Lbl c="Data início"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/></div>
+              <div><Lbl c="Data fim"/><input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
               {[{l:"Ciclo atual",i:ca.ini,f:ca.fim},{l:"Últ. 30d",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})(),f:hoje()}].map(({l,i,f})=>(
-                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:"#FEFDFB",border:"1px solid #C8C4B8",borderRadius:2,fontSize:11,color:"#1A1A1A",fontWeight:600,cursor:"pointer"}}>{l}</button>
+                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:"#fff",border:"1px solid #C5D8FF",borderRadius:7,fontSize:11,color:"#1A56A0",fontWeight:600,cursor:"pointer"}}>{l}</button>
               ))}
             </div>
           </div>
         )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <Card style={{background:"#FEFDFB"}}>
-          <div style={{fontSize:11,color:"#888880"}}>Lucro líquido</div>
+        <Card style={{background:mesTotal.lucro>=0?"#F1F8E9":"#FFEBEE"}}>
+          <div style={{fontSize:11,color:"#888"}}>Lucro líquido</div>
           <div style={{fontSize:22,fontWeight:800,color:mesTotal.lucro>=0?"#2E7D32":"#C62828",marginTop:4}}>{fmtR(mesTotal.lucro)}</div>
-          <div style={{fontSize:11,color:"#888880",marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
+          <div style={{fontSize:11,color:"#999",marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:"#888880"}}>Dias trabalhados</div><div style={{fontSize:18,fontWeight:700}}>{mesTotal.dias} dias</div></Card>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:"#888880"}}>Viagens · KM</div><div style={{fontSize:16,fontWeight:700}}>{mesTotal.viagens} · {mesTotal.km_total}km</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Dias trabalhados</div><div style={{fontSize:18,fontWeight:700}}>{mesTotal.dias} dias</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Viagens · KM</div><div style={{fontSize:16,fontWeight:700}}>{mesTotal.viagens} · {mesTotal.km_total}km</div></Card>
         </div>
       </div>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:12}}>Eficiência (IE)</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Eficiência (IE)</p>
         {/* Seletor de app */}
         <div style={{display:"flex",gap:6,marginBottom:14}}>
           {appCores.map(({id,bg,fg,label})=>(
             <button key={id} onClick={()=>setAppFiltro(id)}
-              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`1px solid ${appFiltro===id?"#1A1A1A":"#C8C4B8"}`,background:appFiltro===id?"#1A1A1A":"#FEFDFB",color:appFiltro===id?"#F5F2EB":"#444440",fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
+              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${bg}`,background:appFiltro===id?bg:"#FFF",color:appFiltro===id?fg:bg,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
               {label}
             </button>
           ))}
@@ -1107,34 +1080,27 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Lucro por semana — {labelAtual}</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana — {labelAtual}</p>
         <BarChart data={semanasDociclo} color={corAtual}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Custos fixos</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos fixos</p>
         {[["Parcela do carro",mes.fixo*parseN(cfg.parcela)/(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12)||parseN(cfg.parcela)],["IPVA (proporcional)",parseN(cfg.ipva)/12],["Seguro (proporcional)",parseN(cfg.seguro)/12]].map(([l,v])=>(
-          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #EAE7E0"}}><span style={{color:"#666660"}}>{l}</span><b>{fmtR(v)}</b></div>
+          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}><span style={{color:"#666"}}>{l}</span><b>{fmtR(v)}</b></div>
         ))}
         <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:"#C62828"}}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div>
       </Card>
       <Card style={{marginBottom:10}}>
-        <p style={{fontSize:10,fontWeight:700,color:"#888880",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"Arial,sans-serif",marginBottom:8}}>Custos variáveis</p>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos variáveis</p>
         {[["Combustível",mes.comb_total],["Revisão e manutenção",mes.rev_t],["Pneu",mes.pneu_t],["Reserva emergência",mes.emer_t]].map(([l,v])=>(
-          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #EAE7E0"}}><span style={{color:"#666660"}}>{l}</span><b>{fmtR(v)}</b></div>
+          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}><span style={{color:"#666"}}>{l}</span><b>{fmtR(v)}</b></div>
         ))}
         <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:"#C62828"}}><span>Total variável</span><span>{fmtR(mes.custos_var)}</span></div>
       </Card>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
         {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"—"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"—"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"—"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"—"]].map(([l,v])=>(
-          <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:"#888880",marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700}}>{v}</div></Card>
+          <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:"#999",marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700}}>{v}</div></Card>
         ))}
-      </div>
-      <div style={{background:"#F1EFE8",borderRadius:2,padding:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:"#444440"}}>✨ Análise do ciclo — IA</span>
-          <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",opacity:loadingAI?0.6:1}}>{loadingAI?"Analisando...":"Analisar ↗"}</button>
-        </div>
-        {aiMsg?<p style={{fontSize:12,color:"#444440",lineHeight:1.8}}>{aiMsg}</p>:<p style={{fontSize:12,color:"#888880",fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}
       </div>
     </div>
   );
@@ -1158,31 +1124,31 @@ function TelaAdmin({onSair}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 20px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={{fontSize:12,color:"#888880"}}>Gerenciar usuários</p>
-        <button onClick={onSair} style={{fontSize:12,color:"#888880",background:"none",border:"1px solid #444",borderRadius:6,padding:"5px 10px",cursor:"pointer"}}>← Sair do admin</button>
+        <p style={{fontSize:12,color:"#AAA"}}>Gerenciar usuários</p>
+        <button onClick={onSair} style={{fontSize:12,color:"#AAA",background:"none",border:"1px solid #444",borderRadius:6,padding:"5px 10px",cursor:"pointer"}}>← Sair do admin</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
         {[["Total",usuarios.filter(u=>!u.admin).length],["Ativos",usuarios.filter(u=>u.ativo&&!u.admin).length],["Pendentes",usuarios.filter(u=>!u.ativo&&!u.admin).length]].map(([l,v])=>(
-          <div key={l} style={{background:"#222",borderRadius:2,padding:10,textAlign:"center"}}>
+          <div key={l} style={{background:"#222",borderRadius:10,padding:10,textAlign:"center"}}>
             <div style={{fontSize:20,fontWeight:700,color:l==="Pendentes"&&v>0?"#FF6B6B":l==="Ativos"?"#69DB7C":"#FFF"}}>{v}</div>
-            <div style={{fontSize:10,color:"#888880",marginTop:2}}>{l}</div>
+            <div style={{fontSize:10,color:"#888",marginTop:2}}>{l}</div>
           </div>
         ))}
       </div>
       <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar" style={{width:"100%",border:"1px solid #333",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#222",color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {["todos","ativos","pendentes"].map(f=>(
-          <button key={f} onClick={()=>setFiltro(f)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid #333",background:filtro===f?"#FEFDFB":"#1A1A1A",color:filtro===f?"#1A1A1A":"#888880",fontSize:12,cursor:"pointer",flex:1,textTransform:"capitalize"}}>{f}</button>
+          <button key={f} onClick={()=>setFiltro(f)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid #333",background:filtro===f?"#FFF":"#222",color:filtro===f?"#111":"#AAA",fontSize:12,cursor:"pointer",flex:1,textTransform:"capitalize"}}>{f}</button>
         ))}
       </div>
-      {loading&&<p style={{textAlign:"center",color:"#888880",padding:20}}>Carregando...</p>}
+      {loading&&<p style={{textAlign:"center",color:"#AAA",padding:20}}>Carregando...</p>}
       {filtrados.filter(u=>!u.admin).map(u=>(
-        <div key={u.id} style={{background:"#1A1A1A",border:`1px solid ${u.ativo?"#2E7D32":"#7B5A00"}`,borderRadius:2,padding:12,marginBottom:10}}>
+        <div key={u.id} style={{background:"#1A1A1A",border:`1px solid ${u.ativo?"#2E7D32":"#7B5A00"}`,borderRadius:10,padding:12,marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
             <div>
               <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p>
-              <p style={{fontSize:11,color:"#888880"}}>{u.email}</p>
-              <p style={{fontSize:10,color:"#666660",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"—"}</p>
+              <p style={{fontSize:11,color:"#888"}}>{u.email}</p>
+              <p style={{fontSize:10,color:"#666",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"—"}</p>
             </div>
             <button onClick={()=>toggleAtivo(u)} style={{padding:"7px 12px",borderRadius:8,border:"none",background:u.ativo?"#7B1010":"#1B4332",color:u.ativo?"#FF6B6B":"#69DB7C",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
               {u.ativo?"⛔ Desativar":"✅ Ativar"}
@@ -1243,12 +1209,12 @@ function App(){
   if(loading)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12}}>
       <div style={{fontSize:36}}>🚗</div>
-      <p style={{color:"#888880",fontSize:14,fontFamily:"Georgia,serif"}}>Carregando...</p>
+      <p style={{color:"#888",fontSize:14,fontFamily:"Georgia,serif"}}>Carregando...</p>
     </div>
   );
 
   if(!session)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#F5F2EB",fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
       <TelaAuth onLogado={()=>supabase.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
     </div>
   );
@@ -1257,26 +1223,26 @@ function App(){
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#111",fontFamily:"Georgia,serif"}}>
       <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #222",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>&#128272; Por km Admin</h1>
-        <button onClick={sair} style={{background:"none",border:"none",color:"#888880",fontSize:12,cursor:"pointer"}}>Sair</button>
+        <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
       </div>
       <TelaAdmin onSair={()=>setTelaAdmin(false)}/>
     </div>
   );
 
   if(controle&&!controle.ativo&&!isAdmin)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#F5F2EB",fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
       <TelaAguardando onSair={sair}/>
     </div>
   );
 
   return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#F5F2EB",fontFamily:"Georgia,serif"}}>
-      <div style={{padding:"12px 16px 10px",borderBottom:"1px solid #D8D4C8",background:"#F5F2EB",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:"#1A1A1A",margin:0}}>Por km</h1>
-        <span style={{fontSize:12,color:"#888880"}}>{navItems.find(n=>n.id===nav)?.label}</span>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
+      <div style={{padding:"12px 16px 10px",borderBottom:"1px solid #E8E8E8",background:"#FFF",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h1 style={{fontSize:20,fontWeight:700,color:"#111",margin:0}}>Por km</h1>
+        <span style={{fontSize:12,color:"#888"}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer"}}>&#128274; Admin</button>}
-          <button onClick={sair} style={{background:"none",border:"none",color:"#888880",fontSize:12,cursor:"pointer"}}>Sair</button>
+          <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
         </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -1287,12 +1253,12 @@ function App(){
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
       </div>
-      <div style={{display:"flex",borderTop:"1px solid #D8D4C8",background:"#FEFDFB",flexShrink:0,overflowX:"auto"}}>
+      <div style={{display:"flex",borderTop:"1px solid #E8E8E8",background:"#FFF",flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
           <button key={n.id} onClick={()=>setNav(n.id)}
             style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:16}}>{n.icon}</span>
-            <span style={{fontSize:8,color:nav===n.id?"#1A1A1A":"#888880",fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
+            <span style={{fontSize:8,color:nav===n.id?"#111":"#AAA",fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
           </button>
         ))}
       </div>
