@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#111111"/>
 <title>Por km</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
-body{background:#F5F2EB;font-family:Georgia,serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
+body{background:#FAFAFA;font-family:Georgia,serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
 input,button,select{font-family:Arial,sans-serif}
 ::-webkit-scrollbar{width:0}
 </style>
@@ -26,20 +27,21 @@ const supabase=window.supabase.createClient(
 );
 const ADMIN_EMAIL="jefersondalci@gmail.com";
 
-// -- utils ------------------------------------------------------
-function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
-function fmtR(n){return(n==null||isNaN(n))?"--":"R$ "+fmt(n);}
+// utils
+function fmt(n,dec=2){if(n==null||isNaN(n))return"—";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
+function fmtR(n){return(n==null||isNaN(n))?"—":"R$ "+fmt(n);}
 function parseN(v){const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n;}
 function horasDiff(h1,h2){if(!h1||!h2)return 0;const[a,b]=[h1,h2].map(h=>{const[hh,mm]=h.split(":").map(Number);return hh*60+mm;});return Math.max(0,(b-a)/60);}
 function hoje(){return new Date().toISOString().slice(0,10);}
-function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/"+y;}
-function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sab"][new Date(d+"T12:00:00").getDay()];}
+function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return`${dd}/${m}/${y}`;}
+function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][new Date(d+"T12:00:00").getDay()];}
 
 const CFG0={meta_km:2.30,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89,dia_ciclo:1,usar_media_comb:false};
 
-// -- ciclo ------------------------------------------------------
 function calcCiclo(dia){
-  const d=parseInt(dia)||1,ag=new Date(),dc=ag.getDate();
+  const d=parseInt(dia)||1;
+  const ag=new Date();
+  const dc=ag.getDate();
   let ini,fim;
   if(dc>=d){ini=new Date(ag.getFullYear(),ag.getMonth(),d);fim=new Date(ag.getFullYear(),ag.getMonth()+1,d-1);}
   else{ini=new Date(ag.getFullYear(),ag.getMonth()-1,d);fim=new Date(ag.getFullYear(),ag.getMonth(),d-1);}
@@ -59,14 +61,14 @@ function gerarCiclos(dia,turnos){
     const iniStr=ini.toISOString().slice(0,10);
     const fimStr=fim.toISOString().slice(0,10);
     if(iniStr>hoje())break;
-    ciclos.push({ini:iniStr,fim:fimStr,label:dataFmt(iniStr)+" -> "+dataFmt(fimStr)});
+    ciclos.push({ini:iniStr,fim:fimStr,label:`${dataFmt(iniStr)} → ${dataFmt(fimStr)}`});
     ini=new Date(ini.getFullYear(),ini.getMonth()+1,d);
   }
   return ciclos.reverse();
 }
 
-// -- calculos --------------------------------------------------
 function calcPeriodo(turnos,abast,cfg,ini,fim){
+  // Exclui turnos abertos (sem km_f ou sem bruto)
   const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
@@ -74,7 +76,8 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
   const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);
   const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);
-  let kmL=parseN(cfg.autonomia)||7,precoComb=parseN(cfg.preco_litro)||5;
+  let kmL=parseN(cfg.autonomia)||7;
+  let precoComb=parseN(cfg.preco_litro)||5;
   if(cfg.usar_media_comb&&abastP.length>0){
     kmL=abastP.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastP.length;
     precoComb=parseN([...abastP].sort((a,b)=>b.data.localeCompare(a.data))[0].preco);
@@ -91,148 +94,163 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
     r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0};
 }
 
-// -- Kindle componentes base -----------------------------------
-const K={
-  bg:"#F5F2EB",card:"#FEFDFB",border:"#D8D4C8",text:"#1A1A1A",
-  muted:"#888880",sep:"#EAE7E0",bar:"#3A3A38",
-  ok:"#2E7D32",err:"#C62828"
-};
-const Card=({children,style})=><div style={{background:K.card,borderRadius:2,border:"1px solid "+K.border,padding:14,...style}}>{children}</div>;
-const Lbl=({c})=><div style={{fontSize:11,color:K.muted,marginBottom:4,marginTop:10,letterSpacing:".3px"}}>{c}</div>;
-const inputStyle={width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"10px 12px",fontSize:16,background:K.card,outline:"none",boxSizing:"border-box",color:K.text};
+// componentes base
+const Card=({children,style})=><div style={{background:"#fff",borderRadius:12,border:"1px solid #E8E8E8",padding:14,...style}}>{children}</div>;
+const Lbl=({c})=><div style={{fontSize:11,color:"#888",marginBottom:4,marginTop:12}}>{c}</div>;
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
   <div style={style}>
     {label&&<Lbl c={label}/>}
-    <input type={type==="number"?"text":type} inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
-      value={value??""}  onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={inputStyle}/>
+    <input type={type==="number"?"text":type}
+      inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
+      value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+      style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
   </div>
 );
-const InpHora=({label,value,onChange})=>{
-  const h=(e)=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);onChange(v);};
-  return <div><Lbl c={label}/><input type="text" inputMode="numeric" value={value??""} onChange={h} placeholder="08:00" maxLength={5} style={inputStyle}/></div>;
-};
+// Input moeda — digita 10000 vira R$ 100,00
 const InpMoeda=({label,value,onChange})=>{
-  const h=(e)=>{const d=e.target.value.replace(/\D/g,"").slice(0,10);onChange(parseInt(d||"0",10)/100);};
+  const handle=(e)=>{
+    const digits=e.target.value.replace(/\D/g,"").slice(0,10);
+    const num=parseInt(digits||"0",10)/100;
+    onChange(num);
+  };
   const display=value!=null&&value!==""?Number(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"";
-  return <div><Lbl c={label}/><input type="text" inputMode="numeric" value={display} onChange={h} placeholder="0,00" style={inputStyle}/></div>;
+  return(
+    <div>
+      {label&&<Lbl c={label}/>}
+      <input type="text" inputMode="numeric" value={display} onChange={handle} placeholder="0,00"
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
+    </div>
+  );
+};
+const InpHora=({label,value,onChange})=>{
+  const handle=(e)=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);onChange(v);};
+  return(<div><Lbl c={label}/><input type="text" inputMode="numeric" value={value??""} onChange={handle} placeholder="08:00" maxLength={5}
+    style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/></div>);
 };
 const Btn=({children,onClick,sec,disabled,style})=>(
   <button onClick={onClick} disabled={disabled}
-    style={{padding:"11px 16px",borderRadius:2,border:"1px solid "+(sec?K.border:K.text),background:sec?K.bg:K.text,
-      color:sec?K.text:K.bg,fontSize:14,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,width:"100%",...style}}>
+    style={{padding:"11px 16px",borderRadius:8,border:sec?"1px solid #DDD":"none",background:sec?"#F5F5F5":"#1A1A1A",
+      color:sec?"#444":"#fff",fontSize:14,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.6:1,width:"100%",...style}}>
     {children}
   </button>
 );
-function Toast({msg}){
+const Badge=({ok,children})=>(
+  <span style={{fontSize:10,padding:"2px 7px",borderRadius:4,background:ok?"#E8F5E9":"#FFEBEE",color:ok?"#2E7D32":"#C62828",fontWeight:600}}>{children}</span>
+);
+function Toast({msg,tipo}){
   if(!msg)return null;
-  return <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px rgba(0,0,0,0.4)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
+  return<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:tipo==="erro"?"#C62828":"#2E7D32",color:"#fff",padding:"10px 20px",borderRadius:8,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 4px 12px rgba(0,0,0,0.2)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
-// IE bar -- linha fina, so o numero e colorido
 function IEBar({label,real,meta,valor}){
-  const ie=meta>0?real/meta:0,ok=ie>=1;
-  return <div style={{marginBottom:14}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
-      <span style={{fontSize:12,color:K.muted}}>{label}</span>
-      <span style={{fontSize:14,fontWeight:700,color:ok?K.ok:K.err}}>{valor} <span style={{fontSize:10,fontWeight:400}}>IE {fmt(ie)}</span></span>
+  const ie=meta>0?real/meta:0;const ok=ie>=1;
+  return<div style={{marginBottom:12}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+      <span style={{fontSize:12,color:"#555"}}>{label} <b style={{color:"#222"}}>{valor}</b></span>
+      <Badge ok={ok}>IE {fmt(ie)} {ok?"✓":"✗"}</Badge>
     </div>
-    <div style={{height:1,background:K.border}}>
-      <div style={{height:"100%",width:Math.min(100,ie*60)+"%",background:ok?K.ok:K.err,transition:"width .5s"}}/>
+    <div style={{height:6,borderRadius:3,background:"#EEE"}}>
+      <div style={{height:"100%",width:Math.min(100,ie*60)+"%",borderRadius:3,background:ok?"#4CAF50":"#EF5350",transition:"width .5s"}}/>
     </div>
   </div>;
 }
-// Grafico Kindle -- barras cinza escuro
-function BarChart({data}){
+function BarChart({data,color="#4CAF50"}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
-  const fB=(v)=>v>=1000?"R$"+Math.round(v/1000*10)/10+"k":"R$"+Math.round(v);
-  return <div style={{display:"flex",alignItems:"flex-end",gap:3,height:100,padding:"0 2px"}}>
+  const fmtBar=(v)=>{
+    if(v>=1000)return"R$"+Math.round(v/1000*10)/10+"k";
+    return"R$"+Math.round(v);
+  };
+  return<div style={{display:"flex",alignItems:"flex-end",gap:4,height:100,padding:"0 2px"}}>
     {data.map((d,i)=>(
       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-        <div style={{fontSize:8,color:K.text,fontWeight:600,textAlign:"center",lineHeight:1.2}}>{d.v>0?fB(d.v):""}</div>
-        <div style={{width:"100%",height:Math.max(3,(Math.abs(d.v)/max)*62),background:d.v>=0?K.bar:"#888",borderRadius:"1px 1px 0 0"}}/>
-        <div style={{fontSize:8,color:K.muted,textAlign:"center"}}>{d.l}</div>
+        <div style={{fontSize:8,color,fontWeight:700,textAlign:"center",lineHeight:1.1}}>{d.v>0?fmtBar(d.v):""}</div>
+        <div style={{width:"100%",height:Math.max(4,(Math.abs(d.v)/max)*65),background:d.v>=0?color:"#EF5350",borderRadius:"4px 4px 0 0",opacity:0.85}}/>
+        <div style={{fontSize:8,color:"#999",textAlign:"center"}}>{d.l}</div>
       </div>
     ))}
   </div>;
 }
-const SecTitle=({t})=><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,margin:"16px 0 8px"}}>{t}</p>;
 
-// -- AUTH ------------------------------------------------------
+// AUTH
 function TelaAuth({onLogado}){
   const[modo,setModo]=useState("login");
-  const[nome,setNome]=useState(""),[email,setEmail]=useState(""),[senha,setSenha]=useState("");
-  const[loading,setLoading]=useState(false),[msg,setMsg]=useState("");
-  const toast=(m)=>{setMsg(m);setTimeout(()=>setMsg(""),4000);};
+  const[nome,setNome]=useState("");const[email,setEmail]=useState("");const[senha,setSenha]=useState("");
+  const[loading,setLoading]=useState(false);const[msg,setMsg]=useState("");const[msgTipo,setMsgTipo]=useState("ok");
+  const toast=(m,t="ok")=>{setMsg(m);setMsgTipo(t);setTimeout(()=>setMsg(""),4000);};
   const entrar=async()=>{
-    if(!email||!senha)return toast("Preencha e-mail e senha.");
+    if(!email||!senha)return toast("Preencha e-mail e senha.","erro");
     setLoading(true);
     const{error}=await supabase.auth.signInWithPassword({email,password:senha});
-    if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message);
-    else{toast("Bem-vindo!");onLogado();}
+    if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message,"erro");
+    else{toast("Bem-vindo! ✅");onLogado();}
     setLoading(false);
   };
-  const recuperar=async()=>{
-    if(!email)return toast("Digite seu e-mail primeiro.");
+  const recuperarSenha=async()=>{
+    if(!email)return toast("Digite seu e-mail acima primeiro.","erro");
     setLoading(true);
     const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
-    if(error)toast("Erro: "+error.message);else toast("E-mail de recuperacao enviado!");
+    if(error)toast("Erro: "+error.message,"erro");
+    else toast("E-mail de recuperação enviado! ✅");
     setLoading(false);
   };
   const cadastrar=async()=>{
-    if(!nome||!email||!senha)return toast("Preencha todos os campos.");
-    if(senha.length<6)return toast("Senha precisa ter 6 caracteres.");
+    if(!nome||!email||!senha)return toast("Preencha todos os campos.","erro");
+    if(senha.length<6)return toast("Senha precisa ter pelo menos 6 caracteres.","erro");
     setLoading(true);
     const{data,error}=await supabase.auth.signUp({email,password:senha,options:{data:{nome}}});
-    if(error){toast(error.message);setLoading(false);return;}
+    if(error){toast(error.message,"erro");setLoading(false);return;}
     if(data.user)await supabase.from("configuracoes").insert({user_id:data.user.id,...CFG0});
-    toast("Conta criada! Verifique seu e-mail.");setModo("login");setLoading(false);
+    toast("Conta criada! Verifique seu e-mail. ✅");setModo("login");setLoading(false);
   };
   return(
     <div style={{display:"flex",flexDirection:"column",justifyContent:"center",flex:1,padding:"32px 24px",overflowY:"auto"}}>
-      <Toast msg={msg}/>
+      <Toast msg={msg} tipo={msgTipo}/>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div>
-        <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
+        <div style={{width:64,height:64,background:"#F5F5F5",border:"1px solid #E0E0E0",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>🚗</div>
+        <h1 style={{fontSize:28,fontWeight:700,color:"#111",margin:0}}>Por km</h1>
+        <p style={{color:"#888",fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
-      {modo==="cadastro"&&<Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/>}
+      {modo==="cadastro"&&<Inp label="Seu nome" value={nome} onChange={setNome} placeholder="João Silva"/>}
       <Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com"/>
-      <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Minimo 6 caracteres"/>
+      <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Mínimo 6 caracteres"/>
       <div style={{marginTop:20}}>
         {modo==="login"?<Btn onClick={entrar} disabled={loading}>{loading?"Entrando...":"Entrar"}</Btn>
-          :<Btn onClick={cadastrar} disabled={loading}>{loading?"Criando...":"Criar minha conta"}</Btn>}
+          :<Btn onClick={cadastrar} disabled={loading}>{loading?"Criando conta...":"Criar minha conta"}</Btn>}
       </div>
       <button onClick={()=>setModo(modo==="login"?"cadastro":"login")}
-        style={{marginTop:10,background:"none",border:"1px solid "+K.border,borderRadius:2,padding:11,fontSize:13,color:K.text,cursor:"pointer",width:"100%"}}>
-        {modo==="login"?"Criar conta gratis":"Ja tenho conta -- Entrar"}
+        style={{marginTop:12,background:"none",border:"1px solid #DDD",borderRadius:8,padding:11,fontSize:13,color:"#555",cursor:"pointer",width:"100%"}}>
+        {modo==="login"?"Criar conta grátis":"Já tenho conta — Entrar"}
       </button>
-      {modo==="login"&&<button onClick={recuperar} disabled={loading}
-        style={{marginTop:8,background:"none",border:"none",fontSize:12,color:K.muted,cursor:"pointer",width:"100%",padding:"6px 0"}}>
-        Esqueci minha senha
-      </button>}
+      {modo==="login"&&(
+        <button onClick={recuperarSenha} disabled={loading}
+          style={{marginTop:8,background:"none",border:"none",fontSize:12,color:"#AAA",cursor:"pointer",width:"100%",padding:"6px 0"}}>
+          Esqueci minha senha
+        </button>
+      )}
     </div>
   );
 }
 
-// -- AGUARDANDO ------------------------------------------------
+// AGUARDANDO
 function TelaAguardando({onSair}){
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:20}}>...</div>
-      <h2 style={{fontSize:20,fontWeight:700,color:K.text,marginBottom:12}}>Conta em analise</h2>
-      <p style={{fontSize:14,color:K.muted,lineHeight:1.7,marginBottom:24}}>Aguarde a ativacao pelo administrador.</p>
-      <button onClick={onSair} style={{background:"none",border:"1px solid "+K.border,borderRadius:2,padding:"10px 24px",fontSize:13,color:K.muted,cursor:"pointer"}}>Sair</button>
+      <div style={{fontSize:56,marginBottom:20}}>⏳</div>
+      <h2 style={{fontSize:20,fontWeight:700,color:"#111",marginBottom:12}}>Conta em análise</h2>
+      <p style={{fontSize:14,color:"#666",lineHeight:1.7,marginBottom:24}}>Sua conta foi criada! Aguarde a ativação pelo administrador.</p>
+      <button onClick={onSair} style={{background:"none",border:"1px solid #DDD",borderRadius:8,padding:"10px 24px",fontSize:13,color:"#888",cursor:"pointer"}}>Sair</button>
     </div>
   );
 }
 
-// -- CONFIG ----------------------------------------------------
+// CONFIG
 function TelaConfig({cfg,userId,onSalvo}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
+  const G=({t})=><p style={{fontSize:11,fontWeight:700,color:"#1A56A0",textTransform:"uppercase",letterSpacing:1,margin:"20px 0 8px"}}>{t}</p>;
   const salvar=async()=>{
     setLoading(true);
-    const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
+    const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:form.usar_media_comb===true||form.usar_media_comb==="true"};
     const{data:ex}=await supabase.from("configuracoes").select("id").eq("user_id",userId).single();
     let err=null;
     if(ex){const{error}=await supabase.from("configuracoes").update(dados).eq("user_id",userId);err=error;}
@@ -240,145 +258,159 @@ function TelaConfig({cfg,userId,onSalvo}){
     if(err){alert("Erro: "+err.message);setLoading(false);return;}
     const{data:novo}=await supabase.from("configuracoes").select("*").eq("user_id",userId).single();
     if(novo)onSalvo(novo);
-    setLoading(false);alert("Configuracoes salvas!");
+    setLoading(false);alert("Configurações salvas! ✅");
   };
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <SecTitle t="Metas de ganho"/>
+      <G t="Metas de ganho"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Meta R$/km" type="number" {...f("meta_km")}/>
         <Inp label="Meta R$/hora" type="number" {...f("meta_hora")}/>
       </div>
-      <SecTitle t="Ciclo financeiro"/>
-      <Lbl c="Dia de inicio do ciclo (ex: 12 para ciclo do dia 12 ao 11)"/>
-      <input type="number" inputMode="numeric" value={form.dia_ciclo??1} onChange={e=>setForm(p=>({...p,dia_ciclo:e.target.value}))} min="1" max="28" style={inputStyle}/>
-      <SecTitle t="Custos fixos mensais"/>
+      <G t="Ciclo financeiro"/>
+      <Lbl c="Dia de início do ciclo (ex: 12 para ciclo do dia 12 ao dia 11)"/>
+      <input type="number" inputMode="numeric" value={form.dia_ciclo??1} onChange={e=>setForm(p=>({...p,dia_ciclo:e.target.value}))} min="1" max="28"
+        style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"10px 12px",fontSize:16,background:"#FAFAFA",outline:"none",boxSizing:"border-box"}}/>
+      <G t="Custos fixos mensais"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Parcela do carro (R$)" type="number" {...f("parcela")}/>
         <Inp label="IPVA anual (R$)" type="number" {...f("ipva")}/>
         <Inp label="Seguro anual (R$)" type="number" {...f("seguro")}/>
       </div>
-      <SecTitle t="Custos variaveis por km"/>
+      <G t="Custos variáveis por km"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Total dos pneus (R$)" type="number" {...f("pneu_total")}/>
-        <Inp label="Duracao pneu (km)" type="number" {...f("pneu_km")}/>
-        <Inp label="Revisao R$/km" type="number" {...f("revisao_km")}/>
-        <Inp label="Emergencia R$/km" type="number" {...f("emergencia_km")}/>
+        <Inp label="Duração pneu (km)" type="number" {...f("pneu_km")}/>
+        <Inp label="Revisão R$/km" type="number" {...f("revisao_km")}/>
+        <Inp label="Emergência R$/km" type="number" {...f("emergencia_km")}/>
       </div>
-      <SecTitle t="Combustivel"/>
+      <G t="Combustível"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Autonomia fixa (km/L)" type="number" {...f("autonomia")}/>
-        <Inp label="Preco do litro (R$)" type="number" {...f("preco_litro")}/>
+        <Inp label="Preço do litro (R$)" type="number" {...f("preco_litro")}/>
       </div>
-      <div style={{marginTop:14,background:K.bg,borderRadius:2,padding:12,border:"1px solid "+K.border}}>
+      <div style={{marginTop:14,background:"#F0F4FF",borderRadius:10,padding:12,border:"1px solid #C5D8FF"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <p style={{fontSize:13,fontWeight:600,color:K.text}}>Usar media real dos abastecimentos</p>
-            <p style={{fontSize:11,color:K.muted,marginTop:3}}>Calcula a autonomia com base nos abastecimentos do ciclo</p>
+            <p style={{fontSize:13,fontWeight:600,color:"#1A56A0"}}>Usar média real dos abastecimentos</p>
+            <p style={{fontSize:11,color:"#666",marginTop:3}}>Calcula a autonomia com base nos seus abastecimentos do ciclo</p>
           </div>
           <div onClick={()=>setForm(p=>({...p,usar_media_comb:!p.usar_media_comb}))}
-            style={{width:44,height:24,borderRadius:12,background:form.usar_media_comb?K.text:K.border,position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}>
-            <div style={{position:"absolute",top:2,left:form.usar_media_comb?20:2,width:20,height:20,borderRadius:"50%",background:K.card,transition:"left .2s"}}/>
+            style={{width:44,height:24,borderRadius:12,background:form.usar_media_comb?"#1A56A0":"#CCC",position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}>
+            <div style={{position:"absolute",top:2,left:form.usar_media_comb?20:2,width:20,height:20,borderRadius:"50%",background:"#FFF",transition:"left .2s"}}/>
           </div>
         </div>
       </div>
-      <div style={{marginTop:24}}><Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar configuracoes"}</Btn></div>
+      <div style={{marginTop:24}}><Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar configurações"}</Btn></div>
     </div>
   );
 }
 
-// -- FORMS TURNO -----------------------------------------------
+// FORM ABRIR TURNO
 function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});
   return(
-    <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>Abrindo {form.num}. turno</p>
+    <Card style={{border:"2px solid #4CAF50",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:"#2E7D32"}}>🟢 Abrindo {form.num}º turno</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
-        <Inp label="No. do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
+        <Inp label="Nº do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
         <Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))} placeholder="75937"/>
-        <InpHora label="Hora inicio" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
+        <InpHora label="Hora início" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
-        <Btn onClick={()=>{if(!form.km_i||!form.h_i)return alert("Preencha KM e hora.");onSalvar(form);}} disabled={loading}>{loading?"Abrindo...":"Abrir turno"}</Btn>
+        <Btn onClick={()=>{if(!form.km_i||!form.h_i)return alert("Preencha KM inicial e hora.");onSalvar(form);}} disabled={loading}>{loading?"Abrindo...":"Abrir turno"}</Btn>
       </div>
     </Card>
   );
 }
 
-function SecaoApp({titulo,dados,setDados,temBonus=true}){
+// SEÇÃO APP — fora do FormFecharTurno para não recriar a cada digitação
+function SecaoApp({titulo,cor,corFundo,dados,setDados,temBonus=true}){
   return(
-    <div style={{border:"1px solid "+K.border,borderRadius:2,padding:12,marginTop:10,background:K.card}}>
-      <p style={{fontSize:12,fontWeight:700,color:K.text,marginBottom:8}}>{titulo}</p>
+    <div style={{border:`2px solid ${cor}`,borderRadius:10,padding:12,marginTop:10,background:corFundo}}>
+      <p style={{fontSize:12,fontWeight:700,color:cor,marginBottom:8}}>{titulo}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
         <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
-        <Inp label="No. de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
+        <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
       </div>
-      {temBonus&&<InpMoeda label="Bonus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
+      {temBonus&&<InpMoeda label="Bônus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
     </div>
   );
 }
 
+// FORM FECHAR TURNO
 function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
-  const[km_f,setKmF]=useState(""),[h_f,setHF]=useState("");
-  const[uber,setUber]=useState({bruto:"",viagens:"",bonus:""});
-  const[nov,setNov]=useState({bruto:"",viagens:"",bonus:""});
+  const[km_f,setKmF]=useState("");
+  const[h_f,setHF]=useState("");
+  const[uber,setUber]=useState({bruto:"",viagens:"",bonus:"0"});
+  const[nov,setNov]=useState({bruto:"",viagens:"",bonus:"0"});
   const[part,setPart]=useState({bruto:"",viagens:""});
+
   const totalBruto=parseN(uber.bruto)+parseN(uber.bonus)+parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto);
   const totalViagens=parseN(uber.viagens)+parseN(nov.viagens)+parseN(part.viagens);
   const km=parseN(km_f)-parseN(turno.km_i);
   const hrs=horasDiff(turno.h_i,h_f);
+
   return(
-    <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:K.text}}>Encerrando {turno.num}. turno</p>
-      <p style={{fontSize:11,color:K.muted,marginBottom:8}}>Iniciado as {turno.h_i} -- KM inicial: {turno.km_i}</p>
+    <Card style={{border:"2px solid #FF9800",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:"#E65100"}}>🔴 Encerrando {turno.num}º turno</p>
+      <p style={{fontSize:11,color:"#888",marginBottom:8}}>Iniciado às {turno.h_i} · KM inicial: {turno.km_i}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
         <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
       </div>
-      <SecaoApp titulo="Uber" dados={uber} setDados={setUber}/>
-      <SecaoApp titulo="99" dados={nov} setDados={setNov}/>
-      <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
-      {totalBruto>0&&(
-        <div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmt(hrs,1)+"h":"--"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
+
+      <SecaoApp titulo="⚫ Uber" cor="#000000" corFundo="#F5F5F5" dados={uber} setDados={setUber}/>
+      <SecaoApp titulo="🟡 99" cor="#F5A800" corFundo="#FFFBF0" dados={nov} setDados={setNov}/>
+      <SecaoApp titulo="🔵 Particular" cor="#1565C0" corFundo="#EEF4FF" dados={part} setDados={setPart} temBonus={false}/>
+
+      {/* Totais calculados */}
+      {(totalBruto>0||totalViagens>0)&&(
+        <div style={{marginTop:12,background:"#F1F8E9",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+          {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Total bruto",fmtR(totalBruto)],["Total viagens",totalViagens+"v"],["Uber",parseN(uber.viagens)+"v · "+fmtR(parseN(uber.bruto)+parseN(uber.bonus))],["99 + Part.",parseN(nov.viagens)+parseN(part.viagens)+"v · "+fmtR(parseN(nov.bruto)+parseN(nov.bonus)+parseN(part.bruto))]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:13,fontWeight:700,color:"#2E7D32"}}>{v}</div><div style={{fontSize:9,color:"#666"}}>{l}</div></div>
           ))}
         </div>
       )}
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={()=>{
           if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");
           if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");
-          if(totalViagens===0)return alert("Informe o numero de viagens.");
-          onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:0,
+          if(totalViagens===0)return alert("Informe o número de viagens.");
+          onSalvar({
+            ...turno,km_f:parseN(km_f),h_f,
+            bruto:totalBruto,viagens:totalViagens,bonus:0,
             uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),
             nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),
-            part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)});
+            part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)
+          });
         }} disabled={loading}>{loading?"Fechando...":"Fechar turno"}</Btn>
       </div>
     </Card>
   );
 }
 
+// FORM TURNO COMPLETO (edição)
 function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
   const[form,setForm]=useState(inicial);
   return(
-    <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>{titulo}</p>
+    <Card style={{border:"1px dashed #CCC",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:4}}>{titulo}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
-        <Inp label="No. turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
+        <Inp label="Nº turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
         <Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))}/>
         <Inp label="KM final" type="number" value={form.km_f} onChange={v=>setForm(f=>({...f,km_f:v}))}/>
-        <InpHora label="Hora inicio" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
+        <InpHora label="Hora início" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
         <InpHora label="Hora fim" value={form.h_f} onChange={v=>setForm(f=>({...f,h_f:v}))}/>
         <Inp label="Valor bruto (R$)" type="number" value={form.bruto} onChange={v=>setForm(f=>({...f,bruto:v}))}/>
-        <Inp label="No. de viagens" type="number" value={form.viagens} onChange={v=>setForm(f=>({...f,viagens:v}))}/>
+        <Inp label="Nº de viagens" type="number" value={form.viagens} onChange={v=>setForm(f=>({...f,viagens:v}))}/>
       </div>
-      <Inp label="Bonus (R$)" type="number" value={form.bonus} onChange={v=>setForm(f=>({...f,bonus:v}))} placeholder="0"/>
+      <Inp label="Bônus (R$)" type="number" value={form.bonus} onChange={v=>setForm(f=>({...f,bonus:v}))} placeholder="0"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={()=>onSalvar(form)} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
@@ -387,35 +419,44 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
   );
 }
 
-// -- DIARIO ---------------------------------------------------
+// DIÁRIO
 function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
-  const[modo,setModo]=useState(null),[editando,setEditando]=useState(null);
-  const[loading,setLoading]=useState(false),[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
+  const[modo,setModo]=useState(null);
+  const[editando,setEditando]=useState(null);
+  const[loading,setLoading]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
   const totalDias=[...new Set(turnos.map(t=>t.data))].length;
-  const totalKm=turnos.filter(t=>parseN(t.km_f)>0).reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-  const totalBruto=turnos.filter(t=>parseN(t.bruto)>0).reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
+  const totalKm=turnos.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
+  const totalBruto=turnos.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const totalViagens=turnos.reduce((s,t)=>s+parseN(t.viagens),0);
-
   const calcT=(t)=>{
-    const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f),b=parseN(t.bruto),bonus=parseN(t.bonus);
+    const k=parseN(t.km_f)-parseN(t.km_i);
+    const h=horasDiff(t.h_i,t.h_f);
+    const b=parseN(t.bruto); // sem bonus no turno individual
+    const bonus=parseN(t.bonus);
     const aut=parseN(cfg.autonomia)||7;
     const c=k>0?(k/aut)*parseN(cfg.preco_litro):0;
     const lucro=b-c-k*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-k*parseN(cfg.revisao_km)-k*parseN(cfg.emergencia_km);
     return{k,h,b,bonus,lucro,r_km:k>0?b/k:0,r_hr:h>0?b/h:0};
   };
 
+  // Resumo do dia (com bonus no total)
   const turnosHojeFechados=turnosHoje.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const resumoDia=turnosHojeFechados.reduce((acc,t)=>{
-    const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f);
-    return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};
+    const k=parseN(t.km_f)-parseN(t.km_i);
+    const h=horasDiff(t.h_i,t.h_f);
+    return{
+      bruto:acc.bruto+parseN(t.bruto),
+      bonus:acc.bonus+parseN(t.bonus),
+      km:acc.km+k,hrs:acc.hrs+h,
+      viagens:acc.viagens+parseN(t.viagens)
+    };
   },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
-  const totDia=resumoDia.bruto+resumoDia.bonus;
-  const diaRkm=resumoDia.km>0?totDia/resumoDia.km:0;
-  const diaRhr=resumoDia.hrs>0?totDia/resumoDia.hrs:0;
-
+  const totalDiaBruto=resumoDia.bruto+resumoDia.bonus;
+  const diaRkm=resumoDia.km>0?totalDiaBruto/resumoDia.km:0;
+  const diaRhr=resumoDia.hrs>0?totalDiaBruto/resumoDia.hrs:0;
   const abrirTurno=async(form)=>{
     setLoading(true);
     const{data,error}=await supabase.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
@@ -424,10 +465,13 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   };
   const fecharTurno=async(form)=>{
     setLoading(true);
-    const upd={km_f:parseN(form.km_f),h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:0,
+    const upd={
+      km_f:parseN(form.km_f),h_f:form.h_f,
+      bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:0,
       uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,
       nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
-      part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};
+      part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0
+    };
     const{data,error}=await supabase.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
     if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
@@ -438,54 +482,45 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
-  const excluir=async(t)=>{
-    if(!window.confirm("Excluir "+t.num+". turno de "+dataFmt(t.data)+"?"))return;
+  const excluirTurno=async(t)=>{
+    if(!window.confirm(`Excluir ${t.num}º turno de ${dataFmt(t.data)}? Esta ação não pode ser desfeita.`))return;
     setLoading(true);
     const{error}=await supabase.from("turnos").delete().eq("id",t.id);
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
-    const totK=turnosHoje.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-    const totV=turnosHoje.reduce((s,t)=>s+parseN(t.viagens),0);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:"Consultor financeiro de motoristas. Portugues (3-4 frases). Dia: "+turnosHoje.length+" turno(s), R$"+totB.toFixed(2)+" bruto, "+totK+"km, "+totV+" viagens. Metas: R$"+cfg.meta_km+"/km, R$"+cfg.meta_hora+"/h. Avalie e de 1 dica."}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Nao foi possivel conectar a IA.");}
-    setLoadingAI(false);
-  },[turnosHoje,cfg]);
+
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
     const{k,h,b,bonus,lucro,r_km,r_hr}=calcT(t);
-    const okKm=r_km>=parseN(cfg.meta_km),okHr=r_hr>=parseN(cfg.meta_hora);
+    const okKm=r_km>=parseN(cfg.meta_km);const okHr=r_hr>=parseN(cfg.meta_hora);
     return(
-      <Card style={{marginBottom:8}}>
+      <Card style={{marginBottom:8,borderLeft:`3px solid ${aberto?"#FF9800":"#4CAF50"}`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:13,fontWeight:600,color:K.text}}>{aberto?"":""}{t.num}. Turno -- {dataFmt(t.data)}</span>
+          <span style={{fontSize:13,fontWeight:600}}>{aberto?"🟡":"🕐"} {t.num}º Turno — {dataFmt(t.data)}</span>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
-              :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>??</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
+            {aberto?<span style={{fontSize:10,background:"#FFF3E0",color:"#E65100",padding:"2px 7px",borderRadius:4,fontWeight:600}}>Em aberto</span>:<Badge ok={lucro>0}>{lucro>0?"✓":"✗"}</Badge>}
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F5F5",border:"1px solid #DDD",borderRadius:6,cursor:"pointer",color:"#555"}}>✏️</button>
+            <button onClick={()=>excluirTurno(t)} style={{fontSize:11,padding:"3px 8px",background:"#FFEBEE",border:"1px solid #FFCDD2",borderRadius:6,cursor:"pointer",color:"#C62828"}}>🗑️</button>
           </div>
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM inicial · Hora início</span><b>{t.km_i} · {t.h_i||"—"}</b></div>
         {!aberto&&<>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmt(h,1)}h</b></div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Viagens / Bruto</span><b style={{color:K.text}}>{t.viagens} / {fmtR(b)}</b></div>
-          {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bonus (nao conta no turno)</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Lucro est.</span><b style={{color:lucro>0?K.ok:K.err}}>{fmtR(lucro)}</b></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid "+K.sep}}>
-            <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:okKm?K.ok:K.err}}>{fmtR(r_km)}/km</div>
-              <div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>KM rodado · Horas</span><b>{k} km · {fmt(h,1)}h</b></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Viagens · Bruto</span><b>{t.viagens} · {fmtR(b)}</b></div>
+          {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}>
+            <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus (não conta no turno)</span><b style={{color:"#1565C0"}}>{fmtR(bonus)}</b>
+          </div>}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid #F5F5F5"}}><span style={{color:"#888"}}>Lucro est.</span><b style={{color:lucro>0?"#2E7D32":"#C62828"}}>{fmtR(lucro)}</b></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #F0F0F0"}}>
+            <div style={{textAlign:"center",background:okKm?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"4px 6px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:okKm?"#2E7D32":"#C62828"}}>{fmtR(r_km)}/km</div>
+              <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
             </div>
-            <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:okHr?K.ok:K.err}}>{fmtR(r_hr)}/h</div>
-              <div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+            <div style={{textAlign:"center",background:okHr?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"4px 6px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:okHr?"#2E7D32":"#C62828"}}>{fmtR(r_hr)}/h</div>
+              <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
             </div>
           </div>
         </>}
@@ -493,134 +528,163 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     );
   };
 
-  const ResumoDiaCard=({res,rKm,rHr,tot})=>(
-    <Card style={{marginBottom:12}}>
-      <SecTitle t="Resumo do dia"/>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
-          <div style={{fontSize:17,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
-          <div style={{fontSize:10,color:K.muted}}>Bruto total c/ bonus</div>
-        </div>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
-          <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:10,color:K.muted}}>{fmt(res.hrs,1)}h trabalhadas</div>
-        </div>
-      </div>
-      {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
-        <span style={{color:K.text}}>Bonus do dia</span><b style={{color:K.text}}>{fmtR(res.bonus)}</b>
-      </div>}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?K.ok:K.err}}>{fmtR(rKm)}/km</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_km))}/km</div>
-        </div>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?K.ok:K.err}}>{fmtR(rHr)}/h</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_hora))}/h</div>
-        </div>
-      </div>
-    </Card>
-  );
-
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       {turnos.length>0&&<>
-        <SecTitle t="Suas medias gerais"/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Suas médias gerais</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
           {[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(
-            <Card key={l} style={{padding:10,textAlign:"center"}}>
-              <div style={{fontSize:15,fontWeight:700,color:K.text}}>{v}</div>
-              <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
-            </Card>
+            <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1A56A0"}}>{v}</div><div style={{fontSize:10,color:"#999",marginTop:2}}>{l}</div></Card>
           ))}
         </div>
       </>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <p style={{fontSize:13,fontWeight:600,color:K.text}}>Hoje, {dataFmt(hoje())}</p>
+        <p style={{fontSize:13,fontWeight:600}}>Hoje, {dataFmt(hoje())}</p>
         {!turnoAberto
-          ?<button onClick={()=>setModo(modo==="abrir"?null:"abrir")} style={{padding:"9px 16px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>Abrir turno</button>
-          :<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:K.bg,color:K.text,border:"1px solid "+K.text,borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>Fechar turno</button>}
+          ?<button onClick={()=>setModo(modo==="abrir"?null:"abrir")} style={{padding:"9px 16px",background:"#2E7D32",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>🟢 Abrir turno</button>
+          :<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:"#E65100",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>🔴 Fechar turno</button>
+        }
       </div>
       {modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
       {modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-      {editando&&<FormTurnoEdit titulo={"Editar -- "+editando.num+". turno ("+dataFmt(editando.data)+")"}
-        inicial={{data:editando.data,num:editando.num,km_i:editando.km_i,km_f:editando.km_f||"",h_i:editando.h_i||"",h_f:editando.h_f||"",bruto:editando.bruto||"",viagens:editando.viagens||"",bonus:editando.bonus||""}}
+      {editando&&<FormTurnoEdit titulo={`Editar — ${editando.num}º turno (${dataFmt(editando.data)})`}
+        inicial={{data:editando.data,num:editando.num,km_i:editando.km_i,km_f:editando.km_f||"",h_i:editando.h_i||"",h_f:editando.h_f||"",bruto:editando.bruto||"",viagens:editando.viagens||"",bonus:editando.bonus||"0"}}
         onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
       {turnosHoje.length===0&&!modo&&!editando&&(
-        <div style={{textAlign:"center",padding:"24px 20px",color:K.muted,background:K.card,borderRadius:2,marginBottom:14,border:"1px solid "+K.border}}>
+        <div style={{textAlign:"center",padding:"24px 20px",color:"#AAA",background:"#F9F9F9",borderRadius:10,marginBottom:14}}>
+          <div style={{fontSize:32,marginBottom:8}}>📋</div>
           <p style={{fontSize:13}}>Nenhum turno hoje ainda.</p>
-          <p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para comecar.</p>
+          <p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para começar.</p>
         </div>
       )}
       {turnosHoje.map(t=><CardTurno key={t.id} t={t}/>)}
-      {turnosHojeFechados.length>0&&<ResumoDiaCard res={resumoDia} rKm={diaRkm} rHr={diaRhr} tot={totDia}/>}
+
+      {/* Card resumo do dia */}
       {turnosHojeFechados.length>0&&(
-        <div style={{background:K.card,borderRadius:2,padding:14,marginBottom:16,border:"1px solid "+K.border}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do dia -- IA</span>
-            <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>
-              {loadingAI?"Analisando...":"Analisar"}
-            </button>
-          </div>
-          {aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.7}}>{aiMsg}</p>
-            :<p style={{fontSize:12,color:K.muted,fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu dia.</p>}
-        </div>
-      )}
-      {turnosAnt.length>0&&<>
-        <SecTitle t="Historico"/>
-        {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
-          const td=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
-          const fechados=td.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
-          const res=fechados.reduce((acc,t)=>{
-            const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f);
-            return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};
-          },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
-          const tot=res.bruto+res.bonus;
-          const rKm=res.km>0?tot/res.km:0,rHr=res.hrs>0?tot/res.hrs:0;
-          return(
-            <div key={data}>
-              <p style={{fontSize:11,fontWeight:700,color:K.muted,margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:1}}>{dataFmt(data)}</p>
-              {td.map(t=><CardTurno key={t.id} t={t}/>)}
-              {fechados.length>0&&<ResumoDiaCard res={res} rKm={rKm} rHr={rHr} tot={tot}/>}
+        <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+          <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#2E7D32"}}>{fmtR(totalDiaBruto)}</div>
+              <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
             </div>
-          );
-        })}
-      </>}
+            <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#444"}}>{resumoDia.viagens} viagens</div>
+              <div style={{fontSize:10,color:"#888"}}>{resumoDia.km} km · {fmt(resumoDia.hrs,1)}h</div>
+            </div>
+          </div>
+          {resumoDia.bonus>0&&(
+            <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+              <span style={{color:"#1565C0",fontWeight:600}}>🎯 Total de bônus do dia</span>
+              <b style={{color:"#1565C0"}}>{fmtR(resumoDia.bonus)}</b>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <div style={{textAlign:"center",background:diaRkm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:diaRkm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(diaRkm)}/km</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_km))}/km</div>
+            </div>
+            <div style={{textAlign:"center",background:diaRhr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:diaRhr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(diaRhr)}/h</div>
+              <div style={{fontSize:9,color:"#888"}}>dia c/ bônus · meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+            </div>
+          </div>
+        </Card>
+      )}
+      {turnosAnt.length>0&&(
+        <>
+          <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,margin:"16px 0 8px"}}>Histórico</p>
+          {/* Agrupa turnos por data */}
+          {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
+            const turnosDia=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
+            const fechados=turnosDia.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
+            const resumo=fechados.reduce((acc,t)=>{
+              const k=parseN(t.km_f)-parseN(t.km_i);
+              const h=horasDiff(t.h_i,t.h_f);
+              return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};
+            },{bruto:0,bonus:0,km:0,hrs:0,viagens:0});
+            const totBruto=resumo.bruto+resumo.bonus;
+            const rKm=resumo.km>0?totBruto/resumo.km:0;
+            const rHr=resumo.hrs>0?totBruto/resumo.hrs:0;
+            return(
+              <div key={data}>
+                <p style={{fontSize:11,fontWeight:600,color:"#1A56A0",margin:"12px 0 6px"}}>📅 {dataFmt(data)}</p>
+                {turnosDia.map(t=><CardTurno key={t.id} t={t}/>)}
+                {fechados.length>0&&(
+                  <Card style={{marginBottom:12,background:"#F8FFF8",border:"2px solid #4CAF50"}}>
+                    <p style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📊 Resumo do dia</p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#2E7D32"}}>{fmtR(totBruto)}</div>
+                        <div style={{fontSize:10,color:"#888"}}>Bruto total c/ bônus</div>
+                      </div>
+                      <div style={{background:"#fff",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:16,fontWeight:800,color:"#444"}}>{resumo.viagens}v · {resumo.km}km</div>
+                        <div style={{fontSize:10,color:"#888"}}>{fmt(resumo.hrs,1)}h trabalhadas</div>
+                      </div>
+                    </div>
+                    {resumo.bonus>0&&(
+                      <div style={{background:"#E3F2FD",borderRadius:8,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
+                        <span style={{color:"#1565C0",fontWeight:600}}>🎯 Bônus do dia</span>
+                        <b style={{color:"#1565C0"}}>{fmtR(resumo.bonus)}</b>
+                      </div>
+                    )}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                      <div style={{textAlign:"center",background:rKm>=parseN(cfg.meta_km)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?"#2E7D32":"#C62828"}}>{fmtR(rKm)}/km</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+                      </div>
+                      <div style={{textAlign:"center",background:rHr>=parseN(cfg.meta_hora)?"#E8F5E9":"#FFEBEE",borderRadius:6,padding:"6px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?"#2E7D32":"#C62828"}}>{fmtR(rHr)}/h</div>
+                        <div style={{fontSize:9,color:"#888"}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
 
-// -- COMBUSTIVEL -----------------------------------------------
+// FORM ABASTECIMENTO
 function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   const isGNV=dados.tipo==="GNV";
   const quant=parseN(dados.litros);
   const kmlF=quant>0?parseN(dados.km_rod)/quant:0;
-  const un=isGNV?"m3":"L";
+  const unidade=isGNV?"m³":"L";
+  const labelQuant=isGNV?"m³ abastecidos":"Litros abastecidos";
+  const labelPreco=isGNV?"Preço por m³ (R$)":"Preço por litro (R$)";
+  const labelCalc=isGNV?"km/m³":"km/L";
   return(
-    <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:8,color:K.text}}>{titulo}</p>
-      <Lbl c="Tipo de combustivel"/>
-      <div style={{display:"flex",border:"1px solid "+K.border,borderRadius:2,overflow:"hidden",marginBottom:4}}>
-        {["Gasolina","Alcool","GNV"].map(t=>(
+    <Card style={{border:"1px dashed #CCC",marginBottom:14}}>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:8}}>{titulo}</p>
+      <Lbl c="Tipo de combustível"/>
+      <div style={{display:"flex",border:"1px solid #DDD",borderRadius:8,overflow:"hidden",marginBottom:4}}>
+        {[["Gasolina","⛽"],["Álcool","🌿"],["GNV","🔵"]].map(([t,ic])=>(
           <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}
-            style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?K.text:K.card,color:dados.tipo===t?K.bg:K.muted,fontWeight:dados.tipo===t?700:400}}>
-            {t}
+            style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?"#1A1A1A":"#FFF",color:dados.tipo===t?"#FFF":"#555",fontWeight:dados.tipo===t?600:400}}>
+            {ic} {t}
           </button>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={dados.data} onChange={v=>setDados(f=>({...f,data:v}))}/>
-        <Inp label={"Preco por "+(isGNV?"m3":"litro")+" (R$)"} type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/>
-        <Inp label={isGNV?"m3 abastecidos":"Litros abastecidos"} type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40.0"/>
+        <Inp label={labelPreco} type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/>
+        <Inp label={labelQuant} type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder={isGNV?"8.0":"40.0"}/>
         <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
       </div>
       {kmlF>0&&(
-        <div style={{marginTop:10,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center",border:"1px solid "+K.border}}>
-          {[["km/"+un,fmt(kmlF)],["R$/km","R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted}}>{l}</div></div>
+        <div style={{marginTop:10,background:"#E3F2FD",borderRadius:8,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+          {[[labelCalc,fmt(kmlF)],[`R$/${isGNV?"m³":"km"}`,"R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#666"}}>{l}</div></div>
           ))}
         </div>
       )}
+      <p style={{fontSize:11,color:"#999",textAlign:"center",marginTop:8,fontStyle:"italic"}}>{labelCalc} = km rodado ÷ {isGNV?"m³":"litros"}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
@@ -629,14 +693,18 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   );
 }
 
+// COMBUSTÍVEL
 function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
-  const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
+  const[mostrar,setMostrar]=useState(false);
+  const[editando,setEditando]=useState(null);
+  const[loading,setLoading]=useState(false);
   const media=abastecimentos.length>0?abastecimentos.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastecimentos.length:0;
   const totalGasto=abastecimentos.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
   const totalLitros=abastecimentos.reduce((s,a)=>s+parseN(a.litros),0);
+  const mediaCkm=media>0&&abastecimentos.length>0?(abastecimentos.reduce((s,a)=>s+parseN(a.preco),0)/abastecimentos.length)/media:0;
   const salvar=async()=>{
-    if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
+    if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha km rodado, quantidade e preço.");
     setLoading(true);
     const{data,error}=await supabase.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
     if(!error){onAdd(data);setMostrar(false);setForm({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});}
@@ -652,44 +720,42 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={{fontSize:12,color:K.muted}}>Controle de consumo</p>
-        <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
+        <p style={{fontSize:12,color:"#888"}}>Controle de consumo</p>
+        <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:"#1A1A1A",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L",fmt(media)],["Custo med./km","R$"+fmt(media>0?(abastecimentos.reduce((s,a)=>s+parseN(a.preco),0)/Math.max(1,abastecimentos.length))/media:0,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
-          <Card key={l} style={{padding:10,textAlign:"center"}}>
-            <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
-            <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
-          </Card>
+        {[["Média km/L",fmt(media)],["Custo médio/km","R$"+fmt(mediaCkm,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
+          <Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:"#1565C0"}}>{v}</div><div style={{fontSize:10,color:"#999",marginTop:2}}>{l}</div></Card>
         ))}
       </div>
       {abastecimentos.length>1&&(
         <Card style={{marginBottom:14}}>
-          <SecTitle t="Evolucao km/L"/>
-          <BarChart data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
+          <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Evolução km/L (ou km/m³)</p>
+          <BarChart color="#1565C0" data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
         </Card>
       )}
       {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
-      {editando&&<FormAbast titulo={"Editar -- "+dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
-      <SecTitle t="Historico"/>
-      {abastecimentos.length===0&&<p style={{color:K.muted,textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
+      {editando&&<FormAbast titulo={`Editar — ${dataFmt(editando.data)}`} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Histórico</p>
+      {abastecimentos.length===0&&<p style={{color:"#AAA",textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
       {abastecimentos.map(a=>{
         const kmlA=parseN(a.litros)>0?parseN(a.km_rod)/parseN(a.litros):0;
-        const un=a.tipo==="GNV"?"m3":"L";
+        const ic=a.tipo==="Gasolina"?"⛽":a.tipo==="Álcool"?"🌿":"🔵";
+        const un=a.tipo==="GNV"?"m³":"L";
         return(
           <Card key={a.id} style={{marginBottom:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
-                <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
+                <span style={{fontSize:13,fontWeight:600}}>{dataFmt(a.data)}</span>
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"1px solid #EEE",color:"#666"}}>{ic} {a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>??</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:"#F5F5F5",border:"1px solid #DDD",borderRadius:6,cursor:"pointer",color:"#555"}}>✏️</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
-              {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
-                <div key={l} style={{textAlign:"center",borderRight:i<3?"1px solid "+K.sep:"none"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?K.ok:K.err):K.text}}>{v}</div>
-                  <div style={{fontSize:10,color:K.muted}}>{l}</div>
+              {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un.replace("L","L"),fmt(kmlA)]].map(([l,v],i)=>(
+                <div key={l} style={{textAlign:"center",borderRight:i<3?"1px solid #F0F0F0":"none"}}>
+                  <div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?"#2E7D32":"#C62828"):"#222"}}>{v}</div>
+                  <div style={{fontSize:10,color:"#999"}}>{l}</div>
                 </div>
               ))}
             </div>
@@ -700,10 +766,11 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   );
 }
 
-// -- COMPARATIVO -----------------------------------------------
-function TelaComparativo({turnos}){
+// COMPARATIVO
+function TelaComparativo({turnos,cfg}){
   const semanas=useMemo(()=>{
     if(!turnos.length)return[];
+    // Agrupa por dia
     const porDia={};
     turnos.forEach(t=>{
       if(!t.data)return;
@@ -713,10 +780,12 @@ function TelaComparativo({turnos}){
       porDia[t.data].hrs+=horasDiff(t.h_i,t.h_f);
       porDia[t.data].viagens+=parseN(t.viagens);
     });
+    // Gera semanas calendário (segunda a domingo) cobrindo todos os dias do BD
     const dias=Object.keys(porDia).sort();
     if(!dias.length)return[];
     const primeiro=new Date(dias[0]+"T12:00:00");
     const ultimo=new Date(dias[dias.length-1]+"T12:00:00");
+    // Vai até a segunda-feira da semana do primeiro dia
     const diaSem=primeiro.getDay();
     const inicio=new Date(primeiro);
     inicio.setDate(primeiro.getDate()-(diaSem===0?6:diaSem-1));
@@ -724,102 +793,118 @@ function TelaComparativo({turnos}){
     let s=new Date(inicio);
     while(s<=ultimo){
       const e=new Date(s);e.setDate(s.getDate()+6);
-      const sStr=s.toISOString().slice(0,10),eStr=e.toISOString().slice(0,10);
+      const sStr=s.toISOString().slice(0,10);
+      const eStr=e.toISOString().slice(0,10);
+      // Só inclui semanas que têm pelo menos 1 dia com dado
       const diasSem=Object.keys(porDia).filter(d=>d>=sStr&&d<=eStr);
       if(diasSem.length>0){
-        sems.push({label:dataFmt(sStr).slice(0,5)+" -> "+dataFmt(eStr).slice(0,5),ini:sStr,fim:eStr,dias:diasSem.map(d=>({data:d,...porDia[d]}))});
+        const diasArr=diasSem.map(d=>({data:d,...porDia[d]}));
+        sems.push({
+          label:`${dataFmt(sStr).slice(0,5)} → ${dataFmt(eStr).slice(0,5)}`,
+          ini:sStr,fim:eStr,dias:diasArr
+        });
       }
       s=new Date(e);s.setDate(e.getDate()+1);
     }
-    return sems.reverse();
+    return sems.reverse(); // mais recente primeiro
   },[turnos]);
-  const[semA,setSemA]=useState(0),[semB,setSemB]=useState(1),[metrica,setMetrica]=useState("r_km");
+  const[semA,setSemA]=useState(0);const[semB,setSemB]=useState(1);const[metrica,setMetrica]=useState("r_km");
   if(semanas.length<2)return(
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted,flexDirection:"column",gap:12}}>
-      <p style={{fontSize:14}}>Registre pelo menos 2 semanas para comparar.</p>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#AAA",flexDirection:"column",gap:12}}>
+      <div style={{fontSize:40}}>📊</div><p style={{fontSize:14}}>Registre pelo menos 2 semanas para comparar.</p>
     </div>
   );
-  const DIAS=["Seg","Ter","Qua","Qui","Sex","Sab","Dom"];
-  const getSem=(idx)=>{
+  const DIAS=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const getSemDias=(idx)=>{
     const sem=semanas[idx];if(!sem)return[];
-    return sem.dias.map(d=>({ds:diaSemana(d.data),r_km:d.km>0?d.bruto/d.km:0,r_hr:d.hrs>0?d.bruto/d.hrs:0,bruto:d.bruto,viagens:d.viagens}));
+    return sem.dias.map(d=>({
+      ds:diaSemana(d.data),
+      r_km:d.km>0?d.bruto/d.km:0,
+      r_hr:d.hrs>0?d.bruto/d.hrs:0,
+      bruto:d.bruto,
+      viagens:d.viagens
+    }));
   };
-  const diasA=getSem(semA),diasB=getSem(semB);
+  const diasA=getSemDias(semA);const diasB=getSemDias(semB);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <SecTitle t="Comparar semanas"/>
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Comparar semanas</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-        <div><Lbl c="Semana A"/>
-          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"9px 10px",fontSize:13,background:K.card,outline:"none",color:K.text}}>
+        <div><Lbl c="Semana A (azul)"/>
+          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#FAFAFA",outline:"none"}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
-        <div><Lbl c="Semana B"/>
-          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"9px 10px",fontSize:13,background:K.card,outline:"none",color:K.text}}>
+        <div><Lbl c="Semana B (verde)"/>
+          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid #DDD",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#FAFAFA",outline:"none"}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["r_km","R$/km"],["r_hr","R$/hora"],["bruto","Bruto"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setMetrica(v)} style={{padding:"7px 10px",borderRadius:2,border:"1px solid "+K.border,background:metrica===v?K.text:K.card,color:metrica===v?K.bg:K.muted,fontSize:12,fontWeight:600,cursor:"pointer",flex:1}}>{l}</button>
+          <button key={v} onClick={()=>setMetrica(v)} style={{padding:"7px 10px",borderRadius:7,border:"1px solid #DDD",background:metrica===v?"#1A1A1A":"#FFF",color:metrica===v?"#FFF":"#555",fontSize:12,fontWeight:600,cursor:"pointer",flex:1}}>{l}</button>
         ))}
       </div>
+      {/* Gráfico */}
       <Card style={{marginBottom:14}}>
-        <SecTitle t={metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"} — dia a dia</p>
         <div style={{display:"flex",gap:4}}>
           {DIAS.map(ds=>{
-            const dA=diasA.find(d=>d.ds===ds),dB=diasB.find(d=>d.ds===ds);
-            const vA=dA?dA[metrica]:0,vB=dB?dB[metrica]:0,max=Math.max(vA,vB,1);
+            const dA=diasA.find(d=>d.ds===ds);const dB=diasB.find(d=>d.ds===ds);
+            const vA=dA?dA[metrica]:0;const vB=dB?dB[metrica]:0;
+            const max=Math.max(vA,vB,1);
             return(
               <div key={ds} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                 <div style={{width:"100%",display:"flex",gap:2,alignItems:"flex-end",height:70}}>
-                  <div style={{flex:1,height:Math.max(2,(vA/max)*65),background:K.bar,borderRadius:"1px 1px 0 0"}}/>
-                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:K.muted,borderRadius:"1px 1px 0 0"}}/>
+                  <div style={{flex:1,height:Math.max(2,(vA/max)*65),background:"#1565C0",borderRadius:"3px 3px 0 0",opacity:0.85}}/>
+                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:"#4CAF50",borderRadius:"3px 3px 0 0",opacity:0.85}}/>
                 </div>
-                <div style={{fontSize:8,color:K.muted}}>{ds}</div>
+                <div style={{fontSize:8,color:"#999"}}>{ds}</div>
               </div>
             );
           })}
         </div>
         <div style={{display:"flex",gap:16,marginTop:10,justifyContent:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:3,background:K.bar}}/><span style={{fontSize:11,color:K.muted}}>Sem A</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:3,background:K.muted}}/><span style={{fontSize:11,color:K.muted}}>Sem B</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#1565C0",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semA]?.label}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#4CAF50",borderRadius:2}}/><span style={{fontSize:11,color:"#555"}}>{semanas[semB]?.label}</span></div>
         </div>
       </Card>
+      {/* Tabela dia a dia */}
       <Card style={{marginBottom:14}}>
-        <SecTitle t={"Detalhamento -- "+(metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto")}/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid "+K.sep}}>
-          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:K.muted,textAlign:"center"}}>{h}</div>)}
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Detalhamento — {metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto"}</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #F0F0F0"}}>
+          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:"#888",textAlign:"center"}}>{h}</div>)}
         </div>
         {DIAS.map(ds=>{
-          const dA=diasA.find(d=>d.ds===ds),dB=diasB.find(d=>d.ds===ds);
+          const dA=diasA.find(d=>d.ds===ds);const dB=diasB.find(d=>d.ds===ds);
           if(!dA&&!dB)return null;
-          const vA=dA?dA[metrica]:null,vB=dB?dB[metrica]:null;
+          const vA=dA?dA[metrica]:null;const vB=dB?dB[metrica]:null;
           const diff=vA&&vA>0&&vB!=null?((vB-vA)/vA)*100:null;
           return(
-            <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid "+K.sep,alignItems:"center"}}>
-              <div style={{fontSize:12,fontWeight:600,color:K.text,textAlign:"center"}}>{ds}</div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{vA&&vA>0?fmtR(vA):"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dA?dA.viagens+"v":"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{vB&&vB>0?fmtR(vB):"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dB?dB.viagens+"v":"--"}</span></div>
+            <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid #F9F9F9",alignItems:"center"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#333",textAlign:"center"}}>{ds}</div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{vA&&vA>0?fmtR(vA):"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dA?dA.viagens+"v":"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{vB&&vB>0?fmtR(vB):"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:"#888"}}>{dB?dB.viagens+"v":"—"}</span></div>
               <div style={{textAlign:"center"}}>
-                {diff!=null?<span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:K.muted}}>--</span>}
+                {diff!=null?<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:diff>=0?"#E8F5E9":"#FFEBEE",color:diff>=0?"#2E7D32":"#C62828"}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:"#CCC"}}>—</span>}
               </div>
             </div>
           );
         })}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"1px solid "+K.border}}>
-          <div style={{fontSize:10,fontWeight:700,color:K.muted,textAlign:"center"}}>Med.</div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
+        {/* Totais */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"2px solid #EEE"}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#555",textAlign:"center"}}>Méd.</div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#1565C0"}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:"#4CAF50"}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:"#888"}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
           <div style={{textAlign:"center"}}>{(()=>{
-            const mA=diasA.filter(d=>d[metrica]>0),mB=diasB.filter(d=>d[metrica]>0);
-            if(!mA.length||!mB.length)return <span style={{fontSize:10,color:K.muted}}>--</span>;
-            const vA=mA.reduce((s,d)=>s+d[metrica],0)/mA.length,vB=mB.reduce((s,d)=>s+d[metrica],0)/mB.length;
-            const diff=vA>0?((vB-vA)/vA)*100:0;
-            return <span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>;
+            const mA=diasA.filter(d=>d[metrica]>0);const mB=diasB.filter(d=>d[metrica]>0);
+            if(!mA.length||!mB.length)return<span style={{fontSize:10,color:"#CCC"}}>—</span>;
+            const vA=mA.reduce((s,d)=>s+d[metrica],0)/mA.length;const vB=mB.reduce((s,d)=>s+d[metrica],0)/mB.length;
+            const d=vA>0?((vB-vA)/vA)*100:0;
+            return<span style={{fontSize:10,fontWeight:700,padding:"2px 4px",borderRadius:4,background:d>=0?"#E8F5E9":"#FFEBEE",color:d>=0?"#2E7D32":"#C62828"}}>{d>=0?"+":""}{fmt(d,1)}%</span>;
           })()}</div>
         </div>
       </Card>
@@ -827,43 +912,40 @@ function TelaComparativo({turnos}){
   );
 }
 
-// -- HISTORICO -------------------------------------------------
+// HISTÓRICO CICLOS
 function TelaHistorico({turnos,abastecimentos,cfg}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
-  const ca=calcCiclo(cfg.dia_ciclo||1);
   if(ciclos.length===0)return(
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted,flexDirection:"column",gap:12}}>
-      <p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:"#AAA",flexDirection:"column",gap:12}}>
+      <div style={{fontSize:40}}>🗂️</div><p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p>
     </div>
   );
+  const ca=calcCiclo(cfg.dia_ciclo||1);
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <SecTitle t="Historico de ciclos"/>
+      <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Histórico de ciclos</p>
       {ciclos.map((c,i)=>{
         const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim);
-        const ab=sel===i,isAt=c.ini===ca.ini;
+        const ab=sel===i;const isAt=c.ini===ca.ini;
         return(
-          <Card key={i} style={{marginBottom:10}}>
+          <Card key={i} style={{marginBottom:10,borderLeft:`3px solid ${isAt?"#1A56A0":m.lucro>=0?"#4CAF50":"#EF5350"}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setSel(ab?null:i)}>
               <div>
-                <p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:10,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p>
-                <p style={{fontSize:12,color:m.lucro>=0?K.ok:K.err,marginTop:2}}>{fmtR(m.lucro)} lucro / {m.dias} dias</p>
+                <p style={{fontSize:13,fontWeight:600}}>{c.label} {isAt&&<span style={{fontSize:10,background:"#D6E4F7",color:"#1A56A0",padding:"1px 6px",borderRadius:4,marginLeft:4}}>atual</span>}</p>
+                <p style={{fontSize:12,color:m.lucro>=0?"#2E7D32":"#C62828",marginTop:2}}>{fmtR(m.lucro)} · {m.dias} dias</p>
               </div>
-              <span style={{color:K.muted,fontSize:14}}>{ab?"?":"?"}</span>
+              <span style={{color:"#AAA",fontSize:16}}>{ab?"▲":"▼"}</span>
             </div>
-            {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+K.sep}}>
+            {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #F0F0F0"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                 {[["Bruto",fmtR(m.bruto)],["Lucro",fmtR(m.lucro)],["KM total",m.km_total+" km"],["Viagens",m.viagens]].map(([l,v])=>(
-                  <div key={l} style={{background:K.bg,borderRadius:1,padding:8,textAlign:"center",border:"1px solid "+K.sep}}>
-                    <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
-                    <div style={{fontSize:10,color:K.muted}}>{l}</div>
-                  </div>
+                  <div key={l} style={{background:"#F9F9F9",borderRadius:8,padding:8,textAlign:"center"}}><div style={{fontSize:14,fontWeight:700}}>{v}</div><div style={{fontSize:10,color:"#999"}}>{l}</div></div>
                 ))}
               </div>
-              {[["R$/km",fmtR(m.r_km)],["R$/hora",fmtR(m.r_hr)],["Custos fixos",fmtR(m.fixo)],["Custos variaveis",fmtR(m.custos_var)]].map(([l,v])=>(
-                <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid "+K.sep}}>
-                  <span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{v}</b>
+              {[["R$/km",fmtR(m.r_km)],["R$/hora",fmtR(m.r_hr)],["Custos fixos",fmtR(m.fixo)],["Custos variáveis",fmtR(m.custos_var)]].map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid #F5F5F5"}}>
+                  <span style={{color:"#888"}}>{l}</span><b>{v}</b>
                 </div>
               ))}
             </div>}
@@ -874,98 +956,122 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
   );
 }
 
-// -- DASHBOARD -------------------------------------------------
+// DASHBOARD
 function TelaDashboard({turnos,abastecimentos,cfg}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
-  const[dataIni,setDataIni]=useState(ca.ini),[dataFim,setDataFim]=useState(ca.fim);
+  const[dataIni,setDataIni]=useState(ca.ini);const[dataFim,setDataFim]=useState(ca.fim);
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
-  const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
 
+  // Função para extrair bruto/viagens/km/hrs de um turno por app
   const extrairApp=(t,app)=>{
-    const km=parseN(t.km_f)-parseN(t.km_i),hrs=horasDiff(t.h_i,t.h_f);
+    const km=parseN(t.km_f)-parseN(t.km_i);
+    const hrs=horasDiff(t.h_i,t.h_f);
     if(app==="uber")return{bruto:parseN(t.uber_bruto)+parseN(t.uber_bonus),viagens:parseN(t.uber_viagens),km,hrs};
     if(app==="99")return{bruto:parseN(t.nov99_bruto)+parseN(t.nov99_bonus),viagens:parseN(t.nov99_viagens),km,hrs};
     if(app==="part")return{bruto:parseN(t.part_bruto),viagens:parseN(t.part_viagens),km,hrs};
     return{bruto:parseN(t.bruto)+parseN(t.bonus),viagens:parseN(t.viagens),km,hrs};
   };
 
+  // Cálculo do período filtrado por app
   const calcApp=(ini,fim)=>{
-    const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
+    const mesTurnos=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
+    const dias=[...new Set(mesTurnos.map(t=>t.data))].length;
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
-    mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;if(d.bruto>0){km_total+=d.km;hrs_total+=d.hrs;}});
+    mesTurnos.forEach(t=>{
+      const d=extrairApp(t,appFiltro);
+      bruto+=d.bruto;
+      viagens+=d.viagens;
+      if(appFiltro==="total"){
+        // Total: usa km e horas completos
+        km_total+=parseN(t.km_f)-parseN(t.km_i);
+        hrs_total+=horasDiff(t.h_i,t.h_f);
+      } else {
+        // Por app: usa proporção do bruto desse app em relação ao total do turno
+        const brutoTotalT=parseN(t.bruto)+parseN(t.bonus);
+        if(brutoTotalT>0&&d.bruto>0){
+          const prop=d.bruto/brutoTotalT;
+          km_total+=(parseN(t.km_f)-parseN(t.km_i))*prop;
+          hrs_total+=horasDiff(t.h_i,t.h_f)*prop;
+        }
+      }
+    });
     const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim);
-    return{...full,bruto,viagens,km_total,hrs_total,r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0,lucro:bruto-full.custos};
+    return{...full,bruto,viagens,km_total:Math.round(km_total),hrs_total,
+      r_km:km_total>0?bruto/km_total:0,
+      r_hr:hrs_total>0?bruto/hrs_total:0,
+      lucro:bruto-full.custos,dias};
   };
 
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
-  const APPS=[{id:"total",label:"Total"},{id:"uber",label:"Uber"},{id:"99",label:"99"},{id:"part",label:"Particular"}];
 
+  // Cores por app — ordem correta
+  const appCores=[
+    {id:"total",bg:"#4CAF50",fg:"#fff",label:"Total"},
+    {id:"uber",bg:"#1A1A1A",fg:"#fff",label:"Uber"},
+    {id:"99",bg:"#F5A800",fg:"#1A1A1A",label:"99"},
+    {id:"part",bg:"#1565C0",fg:"#fff",label:"Particular"},
+  ];
+  const corAtual=appCores.find(a=>a.id===appFiltro)?.bg||"#4CAF50";
+  const labelAtual=appCores.find(a=>a.id===appFiltro)?.label||"Total";
+
+  // Semanas do ciclo filtradas por app
   const semanasDociclo=(()=>{
-    const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
+    const ini=new Date(dataIni+"T12:00:00");
+    const fim=new Date(dataFim+"T12:00:00");
     const semanas=[];
     let s=new Date(ini);
     while(s<=fim){
       const e=new Date(s);e.setDate(s.getDate()+6);
-      const sStr=s.toISOString().slice(0,10),eStr=e>fim?fim.toISOString().slice(0,10):e.toISOString().slice(0,10);
+      const sStr=s.toISOString().slice(0,10);
+      const eStr=e>fim?fim.toISOString().slice(0,10):e.toISOString().slice(0,10);
       const v=turnos.filter(t=>t.data&&t.data>=sStr&&t.data<=eStr&&parseN(t.km_f)>0&&parseN(t.bruto)>0).reduce((a,t)=>a+extrairApp(t,appFiltro).bruto,0);
-      semanas.push({l:s.getDate()+"/"+(s.getMonth()+1),v:Math.round(v)});
+      semanas.push({l:`${s.getDate()}/${s.getMonth()+1}`,v:Math.round(v)});
       s=new Date(e);s.setDate(e.getDate()+1);
     }
     return semanas;
   })();
 
-  const pedirIA=useCallback(async()=>{
-    setLoadingAI(true);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:"Consultor financeiro de motoristas. Portugues (4-5 frases). Ciclo: bruto R$"+mes.bruto.toFixed(2)+", custos R$"+mes.custos.toFixed(2)+", lucro R$"+mes.lucro.toFixed(2)+", "+mes.dias+" dias, "+mes.viagens+" viagens, "+mes.km_total+"km. R$/km:"+mes.r_km.toFixed(2)+"(meta:"+cfg.meta_km+"), R$/hora:"+mes.r_hr.toFixed(2)+"(meta:"+cfg.meta_hora+"). De 2 sugestoes praticas."}]})});
-      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
-    }catch{setAiMsg("Nao foi possivel conectar a IA.");}
-    setLoadingAI(false);
-  },[mes,cfg]);
-
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <p style={{fontSize:12,color:K.muted}}>{mesTotal.dias} dias trabalhados</p>
-            <p style={{fontSize:11,color:K.muted}}>{dataFmt(dataIni)} / {dataFmt(dataFim)}</p>
-          </div>
-          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?K.text:K.bg,color:mostrarFiltro?K.bg:K.text,border:"1px solid "+K.border,borderRadius:2,fontSize:12,fontWeight:600,cursor:"pointer"}}>Periodo</button>
+          <div><p style={{fontSize:12,color:"#888"}}>{mesTotal.dias} dias trabalhados</p><p style={{fontSize:11,color:"#1A56A0",fontWeight:600}}>{dataFmt(dataIni)} → {dataFmt(dataFim)}</p></div>
+          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?"#1A1A1A":"#F0F4FF",color:mostrarFiltro?"#fff":"#1A56A0",border:"1px solid #C5D8FF",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>📅 Período</button>
         </div>
         {mostrarFiltro&&(
-          <div style={{marginTop:10,background:K.bg,borderRadius:2,padding:12,border:"1px solid "+K.border}}>
+          <div style={{marginTop:10,background:"#F0F4FF",borderRadius:10,padding:12,border:"1px solid #C5D8FF"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><Lbl c="Data inicio"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={inputStyle}/></div>
-              <div><Lbl c="Data fim"/><input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={inputStyle}/></div>
+              <div><Lbl c="Data início"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/></div>
+              <div><Lbl c="Data fim"/><input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={{width:"100%",border:"1px solid #C5D8FF",borderRadius:8,padding:"9px 10px",fontSize:13,background:"#fff",outline:"none",boxSizing:"border-box"}}/></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
-              {[{l:"Ciclo atual",i:ca.ini,f:ca.fim},{l:"Ult. 30d",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})(),f:hoje()}].map(({l,i,f})=>(
-                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:K.card,border:"1px solid "+K.border,borderRadius:2,fontSize:11,color:K.text,fontWeight:600,cursor:"pointer"}}>{l}</button>
+              {[{l:"Ciclo atual",i:ca.ini,f:ca.fim},{l:"Últ. 30d",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})(),f:hoje()}].map(({l,i,f})=>(
+                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:"#fff",border:"1px solid #C5D8FF",borderRadius:7,fontSize:11,color:"#1A56A0",fontWeight:600,cursor:"pointer"}}>{l}</button>
               ))}
             </div>
           </div>
         )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <Card>
-          <div style={{fontSize:11,color:K.muted}}>Lucro liquido</div>
-          <div style={{fontSize:22,fontWeight:700,color:mesTotal.lucro>=0?K.ok:K.err,marginTop:4}}>{fmtR(mesTotal.lucro)}</div>
-          <div style={{fontSize:11,color:K.muted,marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
+        <Card style={{background:mesTotal.lucro>=0?"#F1F8E9":"#FFEBEE"}}>
+          <div style={{fontSize:11,color:"#888"}}>Lucro líquido</div>
+          <div style={{fontSize:22,fontWeight:800,color:mesTotal.lucro>=0?"#2E7D32":"#C62828",marginTop:4}}>{fmtR(mesTotal.lucro)}</div>
+          <div style={{fontSize:11,color:"#999",marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Dias trabalhados</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{mesTotal.dias} dias</div></Card>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Viagens / KM</div><div style={{fontSize:15,fontWeight:700,color:K.text}}>{mesTotal.viagens} / {mesTotal.km_total}km</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Dias trabalhados</div><div style={{fontSize:18,fontWeight:700}}>{mesTotal.dias} dias</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:10,color:"#999"}}>Viagens · KM</div><div style={{fontSize:16,fontWeight:700}}>{mesTotal.viagens} · {mesTotal.km_total}km</div></Card>
         </div>
       </div>
       <Card style={{marginBottom:10}}>
-        <SecTitle t="Eficiencia (IE)"/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Eficiência (IE)</p>
+        {/* Seletor de app */}
         <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {APPS.map(({id,label})=>(
+          {appCores.map(({id,bg,fg,label})=>(
             <button key={id} onClick={()=>setAppFiltro(id)}
-              style={{flex:1,padding:"7px 4px",borderRadius:2,border:"1px solid "+(appFiltro===id?K.text:K.border),background:appFiltro===id?K.text:K.card,color:appFiltro===id?K.bg:K.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${bg}`,background:appFiltro===id?bg:"#FFF",color:appFiltro===id?fg:bg,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .15s"}}>
               {label}
             </button>
           ))}
@@ -974,44 +1080,36 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t={"Lucro por semana -- "+APPS.find(a=>a.id===appFiltro)?.label}/>
-        <BarChart data={semanasDociclo}/>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Lucro por semana — {labelAtual}</p>
+        <BarChart data={semanasDociclo} color={corAtual}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t="Custos fixos"/>
-        {[["Parcela do carro",mes.fixo*(parseN(cfg.parcela)/(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12||1))],["IPVA (proporcional)",parseN(cfg.ipva)/12],["Seguro (proporcional)",parseN(cfg.seguro)/12]].map(([l,v])=>(
-          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{fmtR(v)}</b></div>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos fixos</p>
+        {[["Parcela do carro",mes.fixo*parseN(cfg.parcela)/(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12)||parseN(cfg.parcela)],["IPVA (proporcional)",parseN(cfg.ipva)/12],["Seguro (proporcional)",parseN(cfg.seguro)/12]].map(([l,v])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}><span style={{color:"#666"}}>{l}</span><b>{fmtR(v)}</b></div>
         ))}
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:"#C62828"}}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t="Custos variaveis"/>
-        {[["Combustivel",mes.comb_total],["Revisao e manutencao",mes.rev_t],["Pneu",mes.pneu_t],["Reserva emergencia",mes.emer_t]].map(([l,v])=>(
-          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{fmtR(v)}</b></div>
+        <p style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Custos variáveis</p>
+        {[["Combustível",mes.comb_total],["Revisão e manutenção",mes.rev_t],["Pneu",mes.pneu_t],["Reserva emergência",mes.emer_t]].map(([l,v])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}><span style={{color:"#666"}}>{l}</span><b>{fmtR(v)}</b></div>
         ))}
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:"#C62828"}}><span>Total variável</span><span>{fmtR(mes.custos_var)}</span></div>
       </Card>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(
-          <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>
+        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"—"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"—"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"—"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"—"]].map(([l,v])=>(
+          <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:"#999",marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700}}>{v}</div></Card>
         ))}
-      </div>
-      <div style={{background:K.card,borderRadius:2,padding:14,border:"1px solid "+K.border}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do ciclo -- IA</span>
-          <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button>
-        </div>
-        {aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.8}}>{aiMsg}</p>
-          :<p style={{fontSize:12,color:K.muted,fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}
       </div>
     </div>
   );
 }
 
-// -- ADMIN -----------------------------------------------------
+// ADMIN
 function TelaAdmin({onSair}){
-  const[usuarios,setUsuarios]=useState([]),[loading,setLoading]=useState(true);
-  const[busca,setBusca]=useState(""),[filtro,setFiltro]=useState("todos");
+  const[usuarios,setUsuarios]=useState([]);const[loading,setLoading]=useState(true);
+  const[busca,setBusca]=useState("");const[filtro,setFiltro]=useState("todos");
   useEffect(()=>{supabase.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);
   const toggleAtivo=async(u)=>{
     const n=!u.ativo;
@@ -1026,51 +1124,50 @@ function TelaAdmin({onSair}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 20px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={{fontSize:12,color:"#AAA"}}>Gerenciar usuarios</p>
-        <button onClick={onSair} style={{fontSize:12,color:"#AAA",background:"none",border:"1px solid #444",borderRadius:2,padding:"5px 10px",cursor:"pointer"}}>Voltar</button>
+        <p style={{fontSize:12,color:"#AAA"}}>Gerenciar usuários</p>
+        <button onClick={onSair} style={{fontSize:12,color:"#AAA",background:"none",border:"1px solid #444",borderRadius:6,padding:"5px 10px",cursor:"pointer"}}>← Sair do admin</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
         {[["Total",usuarios.filter(u=>!u.admin).length],["Ativos",usuarios.filter(u=>u.ativo&&!u.admin).length],["Pendentes",usuarios.filter(u=>!u.ativo&&!u.admin).length]].map(([l,v])=>(
-          <div key={l} style={{background:"#222",borderRadius:2,padding:10,textAlign:"center"}}>
+          <div key={l} style={{background:"#222",borderRadius:10,padding:10,textAlign:"center"}}>
             <div style={{fontSize:20,fontWeight:700,color:l==="Pendentes"&&v>0?"#FF6B6B":l==="Ativos"?"#69DB7C":"#FFF"}}>{v}</div>
             <div style={{fontSize:10,color:"#888",marginTop:2}}>{l}</div>
           </div>
         ))}
       </div>
-      <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail"
-        style={{width:"100%",border:"1px solid #333",borderRadius:2,padding:"9px 12px",fontSize:13,background:"#222",color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+      <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar" style={{width:"100%",border:"1px solid #333",borderRadius:8,padding:"9px 12px",fontSize:13,background:"#222",color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {["todos","ativos","pendentes"].map(f=>(
-          <button key={f} onClick={()=>setFiltro(f)} style={{padding:"6px 12px",borderRadius:2,border:"1px solid #333",background:filtro===f?"#FFF":"#222",color:filtro===f?"#111":"#AAA",fontSize:12,cursor:"pointer",flex:1,textTransform:"capitalize"}}>{f}</button>
+          <button key={f} onClick={()=>setFiltro(f)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid #333",background:filtro===f?"#FFF":"#222",color:filtro===f?"#111":"#AAA",fontSize:12,cursor:"pointer",flex:1,textTransform:"capitalize"}}>{f}</button>
         ))}
       </div>
       {loading&&<p style={{textAlign:"center",color:"#AAA",padding:20}}>Carregando...</p>}
       {filtrados.filter(u=>!u.admin).map(u=>(
-        <div key={u.id} style={{background:"#1A1A1A",border:"1px solid #333",borderRadius:2,padding:12,marginBottom:10}}>
+        <div key={u.id} style={{background:"#1A1A1A",border:`1px solid ${u.ativo?"#2E7D32":"#7B5A00"}`,borderRadius:10,padding:12,marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
             <div>
               <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p>
               <p style={{fontSize:11,color:"#888"}}>{u.email}</p>
-              <p style={{fontSize:10,color:"#666",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"--"}</p>
+              <p style={{fontSize:10,color:"#666",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"—"}</p>
             </div>
-            <button onClick={()=>toggleAtivo(u)} style={{padding:"7px 12px",borderRadius:2,border:"none",background:u.ativo?"#7B1010":"#1B4332",color:u.ativo?"#FF6B6B":"#69DB7C",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
-              {u.ativo?"Desativar":"Ativar"}
+            <button onClick={()=>toggleAtivo(u)} style={{padding:"7px 12px",borderRadius:8,border:"none",background:u.ativo?"#7B1010":"#1B4332",color:u.ativo?"#FF6B6B":"#69DB7C",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+              {u.ativo?"⛔ Desativar":"✅ Ativar"}
             </button>
           </div>
-          <input defaultValue={u.observacoes||""} onBlur={e=>supabase.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observacoes (ex: Pagou em 10/05)"
-            style={{width:"100%",border:"1px solid #333",borderRadius:2,padding:"7px 10px",fontSize:12,background:"#111",color:"#FFF",outline:"none",boxSizing:"border-box"}}/>
+          <input defaultValue={u.observacoes||""} onBlur={e=>supabase.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observações (ex: Pagou em 10/05)"
+            style={{width:"100%",border:"1px solid #333",borderRadius:6,padding:"7px 10px",fontSize:12,background:"#111",color:"#FFF",outline:"none",boxSizing:"border-box"}}/>
         </div>
       ))}
     </div>
   );
 }
 
-// -- APP PRINCIPAL ---------------------------------------------
+// APP PRINCIPAL
 function App(){
-  const[session,setSession]=useState(null),[loading,setLoading]=useState(true);
+  const[session,setSession]=useState(null);const[loading,setLoading]=useState(true);
   const[nav,setNav]=useState("dashboard");
-  const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
-  const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
+  const[cfg,setCfg]=useState(CFG0);const[turnos,setTurnos]=useState([]);const[abast,setAbast]=useState([]);
+  const[controle,setControle]=useState(null);const[telaAdmin,setTelaAdmin]=useState(false);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
 
   const carregarDados=async(uid)=>{
@@ -1101,23 +1198,23 @@ function App(){
   const sair=async()=>{await supabase.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"?",label:"Dashboard"},
-    {id:"diario",icon:"?",label:"Diario"},
-    {id:"combustivel",icon:"?",label:"Combust."},
-    {id:"comparativo",icon:"?",label:"Comparar"},
-    {id:"historico",icon:"?",label:"Historico"},
-    {id:"config",icon:"?",label:"Config."},
+    {id:"dashboard",icon:"▦",label:"Dashboard"},
+    {id:"diario",icon:"📋",label:"Diário"},
+    {id:"combustivel",icon:"⛽",label:"Combust."},
+    {id:"comparativo",icon:"📊",label:"Comparar"},
+    {id:"historico",icon:"🗂️",label:"Histórico"},
+    {id:"config",icon:"⚙️",label:"Config."},
   ];
 
   if(loading)return(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}>
-      <div style={{fontSize:32}}>?</div>
-      <p style={{color:K.muted,fontSize:14}}>Carregando...</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12}}>
+      <div style={{fontSize:36}}>🚗</div>
+      <p style={{color:"#888",fontSize:14,fontFamily:"Georgia,serif"}}>Carregando...</p>
     </div>
   );
 
   if(!session)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
       <TelaAuth onLogado={()=>supabase.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
     </div>
   );
@@ -1125,7 +1222,7 @@ function App(){
   if(telaAdmin&&isAdmin)return(
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#111",fontFamily:"Georgia,serif"}}>
       <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #222",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>Por km Admin</h1>
+        <h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>&#128272; Por km Admin</h1>
         <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
       </div>
       <TelaAdmin onSair={()=>setTelaAdmin(false)}/>
@@ -1133,19 +1230,19 @@ function App(){
   );
 
   if(controle&&!controle.ativo&&!isAdmin)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
       <TelaAguardando onSair={sair}/>
     </div>
   );
 
   return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
-      <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km</h1>
-        <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#FAFAFA",fontFamily:"Georgia,serif"}}>
+      <div style={{padding:"12px 16px 10px",borderBottom:"1px solid #E8E8E8",background:"#FFF",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h1 style={{fontSize:20,fontWeight:700,color:"#111",margin:0}}>Por km</h1>
+        <span style={{fontSize:12,color:"#888"}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
-          <button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button>
+          {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:"#1A1A1A",color:"#fff",border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer"}}>&#128274; Admin</button>}
+          <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
         </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -1156,12 +1253,12 @@ function App(){
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
       </div>
-      <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
+      <div style={{display:"flex",borderTop:"1px solid #E8E8E8",background:"#FFF",flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
           <button key={n.id} onClick={()=>setNav(n.id)}
             style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:16,color:nav===n.id?K.text:K.muted}}>{n.icon}</span>
-            <span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
+            <span style={{fontSize:16}}>{n.icon}</span>
+            <span style={{fontSize:8,color:nav===n.id?"#111":"#AAA",fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
           </button>
         ))}
       </div>
