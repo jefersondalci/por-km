@@ -20,8 +20,8 @@ input,button,select{font-family:Arial,sans-serif}
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
 const{useState,useEffect,useCallback,useMemo}=React;
-const supabase=window.supabase.createClient(
-  "https://msxlodutcllvvydqtdob.supabase.co",
+const sb=window.supabase.createClient(
+  "https://msxlodutcllvvydqtdob.sb.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk"
 );
 const ADMIN_EMAIL="jefersondalci@gmail.com";
@@ -165,7 +165,7 @@ function TelaAuth({onLogado}){
   const entrar=async()=>{
     if(!email||!senha)return toast("Preencha e-mail e senha.");
     setLoading(true);
-    const{error}=await supabase.auth.signInWithPassword({email,password:senha});
+    const{error}=await sb.auth.signInWithPassword({email,password:senha});
     if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message);
     else{toast("Bem-vindo!");onLogado();}
     setLoading(false);
@@ -173,7 +173,7 @@ function TelaAuth({onLogado}){
   const recuperar=async()=>{
     if(!email)return toast("Digite seu e-mail primeiro.");
     setLoading(true);
-    const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
+    const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
     if(error)toast("Erro: "+error.message);else toast("E-mail de recuperacao enviado!");
     setLoading(false);
   };
@@ -181,9 +181,9 @@ function TelaAuth({onLogado}){
     if(!nome||!email||!senha)return toast("Preencha todos os campos.");
     if(senha.length<6)return toast("Senha precisa ter 6 caracteres.");
     setLoading(true);
-    const{data,error}=await supabase.auth.signUp({email,password:senha,options:{data:{nome}}});
+    const{data,error}=await sb.auth.signUp({email,password:senha,options:{data:{nome}}});
     if(error){toast(error.message);setLoading(false);return;}
-    if(data.user)await supabase.from("configuracoes").insert({user_id:data.user.id,...CFG0});
+    if(data.user)await sb.from("configuracoes").insert({user_id:data.user.id,...CFG0});
     toast("Conta criada! Verifique seu e-mail.");setModo("login");setLoading(false);
   };
   return(
@@ -233,12 +233,12 @@ function TelaConfig({cfg,userId,onSalvo}){
   const salvar=async()=>{
     setLoading(true);
     const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
-    const{data:ex}=await supabase.from("configuracoes").select("id").eq("user_id",userId).single();
+    const{data:ex}=await sb.from("configuracoes").select("id").eq("user_id",userId).single();
     let err=null;
-    if(ex){const{error}=await supabase.from("configuracoes").update(dados).eq("user_id",userId);err=error;}
-    else{const{error}=await supabase.from("configuracoes").insert({user_id:userId,...dados});err=error;}
+    if(ex){const{error}=await sb.from("configuracoes").update(dados).eq("user_id",userId);err=error;}
+    else{const{error}=await sb.from("configuracoes").insert({user_id:userId,...dados});err=error;}
     if(err){alert("Erro: "+err.message);setLoading(false);return;}
-    const{data:novo}=await supabase.from("configuracoes").select("*").eq("user_id",userId).single();
+    const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();
     if(novo)onSalvo(novo);
     setLoading(false);alert("Configuracoes salvas!");
   };
@@ -418,7 +418,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
   const abrirTurno=async(form)=>{
     setLoading(true);
-    const{data,error}=await supabase.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
+    const{data,error}=await sb.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
     if(!error){onAdd(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -428,20 +428,20 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,
       nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
       part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};
-    const{data,error}=await supabase.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
+    const{data,error}=await sb.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
     if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async(form)=>{
     setLoading(true);
-    const{data,error}=await supabase.from("turnos").update({data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",editando.id).select().single();
+    const{data,error}=await sb.from("turnos").update({data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",editando.id).select().single();
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
   const excluir=async(t)=>{
     if(!window.confirm("Excluir "+t.num+". turno de "+dataFmt(t.data)+"?"))return;
     setLoading(true);
-    const{error}=await supabase.from("turnos").delete().eq("id",t.id);
+    const{error}=await sb.from("turnos").delete().eq("id",t.id);
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -638,14 +638,14 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   const salvar=async()=>{
     if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
     setLoading(true);
-    const{data,error}=await supabase.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
+    const{data,error}=await sb.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
     if(!error){onAdd(data);setMostrar(false);setForm({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});}
     else alert("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async()=>{
     setLoading(true);
-    const{data,error}=await supabase.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();
+    const{data,error}=await sb.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -1012,10 +1012,10 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
 function TelaAdmin({onSair}){
   const[usuarios,setUsuarios]=useState([]),[loading,setLoading]=useState(true);
   const[busca,setBusca]=useState(""),[filtro,setFiltro]=useState("todos");
-  useEffect(()=>{supabase.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);
+  useEffect(()=>{sb.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);
   const toggleAtivo=async(u)=>{
     const n=!u.ativo;
-    await supabase.from("usuarios_controle").update({ativo:n,data_ativacao:n?new Date().toISOString():null}).eq("id",u.id);
+    await sb.from("usuarios_controle").update({ativo:n,data_ativacao:n?new Date().toISOString():null}).eq("id",u.id);
     setUsuarios(p=>p.map(x=>x.id===u.id?{...x,ativo:n}:x));
   };
   const filtrados=usuarios.filter(u=>{
@@ -1057,7 +1057,7 @@ function TelaAdmin({onSair}){
               {u.ativo?"Desativar":"Ativar"}
             </button>
           </div>
-          <input defaultValue={u.observacoes||""} onBlur={e=>supabase.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observacoes (ex: Pagou em 10/05)"
+          <input defaultValue={u.observacoes||""} onBlur={e=>sb.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observacoes (ex: Pagou em 10/05)"
             style={{width:"100%",border:"1px solid #333",borderRadius:2,padding:"7px 10px",fontSize:12,background:"#111",color:"#FFF",outline:"none",boxSizing:"border-box"}}/>
         </div>
       ))}
@@ -1076,12 +1076,12 @@ function App(){
   const carregarDados=async(uid)=>{
     setLoading(true);
     try{
-      const{data:ctrl}=await supabase.from("usuarios_controle").select("*").eq("user_id",uid).single();
+      const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();
       setControle(ctrl||null);
       const[{data:c},{data:t},{data:a}]=await Promise.all([
-        supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
-        supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
-        supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
+        sb.from("configuracoes").select("*").eq("user_id",uid).single(),
+        sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
+        sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
       ]);
       if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
     }catch(e){console.warn(e);}
@@ -1090,15 +1090,15 @@ function App(){
 
   useEffect(()=>{
     const timer=setTimeout(()=>setLoading(false),6000);
-    supabase.auth.getSession().then(({data:{session}})=>{
+    sb.auth.getSession().then(({data:{session}})=>{
       clearTimeout(timer);setSession(session);
       if(session)carregarDados(session.user.id);else setLoading(false);
     }).catch(()=>{clearTimeout(timer);setLoading(false);});
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});
     return()=>subscription.unsubscribe();
   },[]);
 
-  const sair=async()=>{await supabase.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
+  const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
     {id:"dashboard",icon:"?",label:"Dashboard"},
@@ -1118,7 +1118,7 @@ function App(){
 
   if(!session)return(
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
-      <TelaAuth onLogado={()=>supabase.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
+      <TelaAuth onLogado={()=>sb.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
     </div>
   );
 
