@@ -1101,17 +1101,17 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"?",label:"Dashboard"},
-    {id:"diario",icon:"?",label:"Diario"},
-    {id:"combustivel",icon:"?",label:"Combust."},
-    {id:"comparativo",icon:"?",label:"Comparar"},
-    {id:"historico",icon:"?",label:"Historico"},
-    {id:"config",icon:"?",label:"Config."},
+    {id:"dashboard",icon:"[]",label:"Dashboard"},
+    {id:"diario",icon:"=",label:"Diario"},
+    {id:"combustivel",icon:"O",label:"Combust."},
+    {id:"comparativo",icon:"||",label:"Comparar"},
+    {id:"historico",icon:"#",label:"Historico"},
+    {id:"config",icon:"*",label:"Config."},
   ];
 
   if(loading)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}>
-      <div style={{fontSize:32}}>?</div>
+      <div style={{fontSize:32,fontFamily:"Arial"}}>&#128663;</div>
       <p style={{color:K.muted,fontSize:14}}>Carregando...</p>
     </div>
   );
