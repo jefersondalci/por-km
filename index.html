@@ -1075,16 +1075,10 @@ function App(){
 
   const carregarDados=async(uid)=>{
     setLoading(true);
-    try{
-      const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();
-      setControle(ctrl||null);
-      const[{data:c},{data:t},{data:a}]=await Promise.all([
-        sb.from("configuracoes").select("*").eq("user_id",uid).single(),
-        sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
-        sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
-      ]);
-      if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
-    }catch(e){console.warn(e);}
+    try{const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();setControle(ctrl||null);}catch(e){}
+    try{const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();if(c)setCfg(c);}catch(e){}
+    try{const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});if(t)setTurnos(t);}catch(e){console.warn("turnos:",e);}
+    try{const{data:a}=await sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false});if(a)setAbast(a);}catch(e){}
     setLoading(false);
   };
 
@@ -1101,12 +1095,12 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"DB",label:"Dashboard"},
-    {id:"diario",icon:"DI",label:"Diario"},
-    {id:"combustivel",icon:"CB",label:"Combust."},
-    {id:"comparativo",icon:"CP",label:"Comparar"},
-    {id:"historico",icon:"HI",label:"Historico"},
-    {id:"config",icon:"CF",label:"Config."},
+    {id:"dashboard",icon:"\u229e",label:"Dashboard"},
+    {id:"diario",icon:"\u229f",label:"Diario"},
+    {id:"combustivel",icon:"\u26fd",label:"Combust."},
+    {id:"comparativo",icon:"\u29c7",label:"Comparar"},
+    {id:"historico",icon:"\u2b1c",label:"Historico"},
+    {id:"config",icon:"\u2699",label:"Config."},
   ];
 
   if(loading)return(
