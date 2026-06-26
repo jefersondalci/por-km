@@ -468,8 +468,8 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
               :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>??</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
+            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>✕</button>
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
@@ -683,7 +683,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>??</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
@@ -1099,7 +1099,7 @@ function App(){
     {id:"diario",icon:"📋",label:"Diario"},
     {id:"combustivel",icon:"⛽",label:"Combust."},
     {id:"comparativo",icon:"📊",label:"Comparar"},
-    {id:"historico",icon:"🗂",label:"Historico"},
+    {id:"historico",icon:"📁",label:"Historico"},
     {id:"config",icon:"⚙",label:"Config."},
   ];
 
