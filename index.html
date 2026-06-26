@@ -1095,12 +1095,12 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"\u229e",label:"Dashboard"},
-    {id:"diario",icon:"\u229f",label:"Diario"},
-    {id:"combustivel",icon:"\u26fd",label:"Combust."},
-    {id:"comparativo",icon:"\u29c7",label:"Comparar"},
-    {id:"historico",icon:"\u2b1c",label:"Historico"},
-    {id:"config",icon:"\u2699",label:"Config."},
+    {id:"dashboard",icon:"[+]",label:"Dashboard"},
+    {id:"diario",icon:"[-]",label:"Diario"},
+    {id:"combustivel",icon:"[G]",label:"Combust."},
+    {id:"comparativo",icon:"[=]",label:"Comparar"},
+    {id:"historico",icon:"[H]",label:"Historico"},
+    {id:"config",icon:"[*]",label:"Config."},
   ];
 
   if(loading)return(
@@ -1153,9 +1153,8 @@ function App(){
       <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
           <button key={n.id} onClick={()=>setNav(n.id)}
-            style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:12,fontWeight:700,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",letterSpacing:"-0.5px"}}>{n.icon}</span>
-            <span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
+            style={{flex:1,minWidth:52,padding:"6px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+            <span style={{fontSize:nav===n.id?13:12,fontWeight:nav===n.id?700:400,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",whiteSpace:"nowrap",borderBottom:nav===n.id?"2px solid "+K.text:"2px solid transparent",paddingBottom:1}}>{n.label}</span>
           </button>
         ))}
       </div>
