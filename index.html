@@ -468,8 +468,8 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
               :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>✕</button>
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
@@ -683,7 +683,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
@@ -850,7 +850,7 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
                 <p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:10,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p>
                 <p style={{fontSize:12,color:m.lucro>=0?K.ok:K.err,marginTop:2}}>{fmtR(m.lucro)} lucro / {m.dias} dias</p>
               </div>
-              <span style={{color:K.muted,fontSize:14}}>{ab?"?":"?"}</span>
+              <span style={{color:K.muted,fontSize:14}}>{ab?"[-]":"[+]"}</span>
             </div>
             {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+K.sep}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
@@ -1103,12 +1103,12 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"🏠",label:"Dashboard"},
-    {id:"diario",icon:"📋",label:"Diario"},
-    {id:"combustivel",icon:"⛽",label:"Combust."},
-    {id:"comparativo",icon:"📊",label:"Comparar"},
-    {id:"historico",icon:"📁",label:"Historico"},
-    {id:"config",icon:"⚙",label:"Config."},
+    {id:"dashboard",icon:"[D]",label:"Dashboard"},
+    {id:"diario",icon:"[Di]",label:"Diario"},
+    {id:"combustivel",icon:"[C]",label:"Combust."},
+    {id:"comparativo",icon:"[Cp]",label:"Comparar"},
+    {id:"historico",icon:"[H]",label:"Historico"},
+    {id:"config",icon:"[Cf]",label:"Config."},
   ];
 
   if(loading)return(
