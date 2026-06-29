@@ -683,7 +683,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
