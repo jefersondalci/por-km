@@ -394,10 +394,14 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
-  const totalDias=[...new Set(turnos.map(t=>t.data))].length;
-  const totalKm=turnos.filter(t=>parseN(t.km_f)>0).reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-  const totalBruto=turnos.filter(t=>parseN(t.bruto)>0).reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
-  const totalViagens=turnos.reduce((s,t)=>s+parseN(t.viagens),0);
+
+  // Medias do ciclo atual
+  const ca=calcCiclo(cfg.dia_ciclo||1);
+  const turnosCiclo=turnos.filter(t=>t.data&&t.data>=ca.ini&&t.data<=ca.fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
+  const totalDias=[...new Set(turnosCiclo.map(t=>t.data))].length;
+  const totalKm=turnosCiclo.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
+  const totalBruto=turnosCiclo.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
+  const totalViagens=turnosCiclo.reduce((s,t)=>s+parseN(t.viagens),0);
 
   const calcT=(t)=>{
     const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f),b=parseN(t.bruto),bonus=parseN(t.bonus);
@@ -524,8 +528,11 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      {turnos.length>0&&<>
-        <SecTitle t="Suas medias gerais"/>
+      {turnosCiclo.length>0&&<>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <SecTitle t="Suas medias gerais"/>
+          <span style={{fontSize:10,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span>
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
           {[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(
             <Card key={l} style={{padding:10,textAlign:"center"}}>
@@ -632,7 +639,10 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
 function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
   const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
-  const media=abastecimentos.length>0?abastecimentos.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastecimentos.length:0;
+  // Ultimos 4 abastecimentos para calcular medias
+  const ultimos4=abastecimentos.slice(0,4);
+  const media=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/ultimos4.length:0;
+  const mediaPreco=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.preco),0)/ultimos4.length:0;
   const totalGasto=abastecimentos.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
   const totalLitros=abastecimentos.reduce((s,a)=>s+parseN(a.litros),0);
   const salvar=async()=>{
@@ -656,7 +666,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
         <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L",fmt(media)],["Custo med./km","R$"+fmt(media>0?(abastecimentos.reduce((s,a)=>s+parseN(a.preco),0)/Math.max(1,abastecimentos.length))/media:0,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
+        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
           <Card key={l} style={{padding:10,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
             <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
