@@ -675,7 +675,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,periodoIni,pe
         <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)],["Volume no periodo",fmt(totalLitros,1)],["Gasto no periodo",fmtR(totalGasto)]].map(([l,v])=>(
+        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)]].map(([l,v])=>(
           <Card key={l} style={{padding:10,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
             <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
