@@ -636,15 +636,24 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   );
 }
 
-function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
+function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,periodoIni,periodoFim}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
   const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
-  // Ultimos 4 abastecimentos para calcular medias
+
+  // Periodo do dashboard
+  const abastPeriodo=abastecimentos.filter(a=>a.data&&a.data>=periodoIni&&a.data<=periodoFim);
+
+  // Ultimos 4 para medias
   const ultimos4=abastecimentos.slice(0,4);
   const media=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/ultimos4.length:0;
   const mediaPreco=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.preco),0)/ultimos4.length:0;
-  const totalGasto=abastecimentos.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
-  const totalLitros=abastecimentos.reduce((s,a)=>s+parseN(a.litros),0);
+
+  // Volume e gasto do periodo selecionado no dashboard
+  const totalGasto=abastPeriodo.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
+  const totalLitros=abastPeriodo.reduce((s,a)=>s+parseN(a.litros),0);
+
+  // Grafico: ultimos 6 abastecimentos
+  const abastGrafico=abastecimentos.slice(0,6);
   const salvar=async()=>{
     if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
     setLoading(true);
@@ -666,17 +675,17 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
         <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
+        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)],["Volume no periodo",fmt(totalLitros,1)],["Gasto no periodo",fmtR(totalGasto)]].map(([l,v])=>(
           <Card key={l} style={{padding:10,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
             <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
           </Card>
         ))}
       </div>
-      {abastecimentos.length>1&&(
+      {abastGrafico.length>1&&(
         <Card style={{marginBottom:14}}>
-          <SecTitle t="Evolucao km/L"/>
-          <BarChart data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
+          <SecTitle t="Evolucao km/L (ult. 6)"/>
+          <BarChart data={[...abastGrafico].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
         </Card>
       )}
       {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
@@ -893,9 +902,10 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
 }
 
 // -- DASHBOARD -------------------------------------------------
-function TelaDashboard({turnos,abastecimentos,cfg}){
+function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
-  const[dataIni,setDataIni]=useState(ca.ini),[dataFim,setDataFim]=useState(ca.fim);
+  const[dataIni,setDataIni]=[periodoIni,setPeriodoIni];
+  const[dataFim,setDataFim]=[periodoFim,setPeriodoFim];
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
@@ -1089,6 +1099,10 @@ function App(){
   const[nav,setNav]=useState("dashboard");
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
+  // Periodo compartilhado entre Dashboard e Combustivel
+  const ca0=calcCiclo(CFG0.dia_ciclo||1);
+  const[periodoIni,setPeriodoIni]=useState(ca0.ini);
+  const[periodoFim,setPeriodoFim]=useState(ca0.fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
 
   const carregarDados=async(uid)=>{
@@ -1161,9 +1175,9 @@ function App(){
         </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
+        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim}/>}
         {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
-        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))}/>}
+        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
