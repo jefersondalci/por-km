@@ -1099,17 +1099,33 @@ function App(){
   const[nav,setNav]=useState("dashboard");
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
-  // Periodo compartilhado entre Dashboard e Combustivel
-  const ca0=calcCiclo(CFG0.dia_ciclo||1);
-  const[periodoIni,setPeriodoIni]=useState(ca0.ini);
-  const[periodoFim,setPeriodoFim]=useState(ca0.fim);
+  // Periodo compartilhado — inicializa com dia_ciclo=1, atualiza apos carregar cfg
+  const[periodoIni,setPeriodoIni]=useState(calcCiclo(1).ini);
+  const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
 
   const carregarDados=async(uid)=>{
     setLoading(true);
     try{const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();setControle(ctrl||null);}catch(e){}
-    try{const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();if(c)setCfg(c);}catch(e){}
-    try{const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});if(t)setTurnos(t);}catch(e){console.warn("turnos:",e);}
+    try{
+      const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();
+      if(c){
+        setCfg(c);
+        // Atualiza periodo com o dia_ciclo real do usuario
+        const ca=calcCiclo(c.dia_ciclo||1);
+        setPeriodoIni(ca.ini);
+        setPeriodoFim(ca.fim);
+      }
+    }catch(e){}
+    try{
+      const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});
+      if(t){
+        setTurnos(t);
+        // Se tiver turno aberto hoje, navega para o diario
+        const turnoAberto=t.find(x=>x.data===hoje()&&x.km_i&&(!x.km_f||!x.bruto));
+        if(turnoAberto)setNav("diario");
+      }
+    }catch(e){console.warn("turnos:",e);}
     try{const{data:a}=await sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false});if(a)setAbast(a);}catch(e){}
     setLoading(false);
   };
