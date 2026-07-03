@@ -30,6 +30,7 @@ const ADMIN_EMAIL="jefersondalci@gmail.com";
 function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
 function fmtR(n){return(n==null||isNaN(n))?"--":"R$ "+fmt(n);}
 function parseN(v){const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n;}
+function fmtHora(h){if(!h||h<=0)return"0h00m";const hh=Math.floor(h);const mm=Math.round((h-hh)*60);return hh+"h"+(mm<10?"0":"")+mm+"m";}
 function horasDiff(h1,h2){if(!h1||!h2)return 0;const[a,b]=[h1,h2].map(h=>{const[hh,mm]=h.split(":").map(Number);return hh*60+mm;});return Math.max(0,(b-a)/60);}
 function hoje(){return new Date().toISOString().slice(0,10);}
 function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/"+y;}
@@ -342,7 +343,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
       <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
       {totalBruto>0&&(
         <div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmt(hrs,1)+"h":"--"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
+          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
             <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
           ))}
         </div>
@@ -478,7 +479,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
         {!aberto&&<>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmt(h,1)}h</b></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmtHora(h)}</b></div>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Viagens / Bruto</span><b style={{color:K.text}}>{t.viagens} / {fmtR(b)}</b></div>
           {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bonus (nao conta no turno)</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Lucro est.</span><b style={{color:lucro>0?K.ok:K.err}}>{fmtR(lucro)}</b></div>
@@ -507,7 +508,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:10,color:K.muted}}>{fmt(res.hrs,1)}h trabalhadas</div>
+          <div style={{fontSize:10,color:K.muted}}>{fmtHora(res.hrs)} trabalhadas</div>
         </div>
       </div>
       {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
@@ -884,8 +885,8 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
                 ["R$/km",fmtR(m.r_km)],
                 ["R$/hora",fmtR(m.r_hr)],
                 ["Custo/km",fmtR(m.custos/Math.max(1,m.km_total))],
-                ["Total horas",fmt(m.hrs_total,1)+"h"],
-                ["Media h/dia",fmt(m.dias>0?m.hrs_total/m.dias:0,1)+"h/dia"],
+                ["Total horas",fmtHora(m.hrs_total)],
+                ["Media h/dia",fmtHora(m.dias>0?m.hrs_total/m.dias:0)+"/dia"],
                 ["Custos fixos",fmtR(m.fixo)],
                 ["Custos variaveis",fmtR(m.custos_var)]
               ].map(([l,v])=>(
@@ -1020,7 +1021,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
         <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div>
       </Card>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(
+        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmtHora(mes.hrs_total/mes.dias):"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(
           <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>
         ))}
       </div>
