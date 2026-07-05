@@ -473,7 +473,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
               :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
             <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
           </div>
         </div>
@@ -709,7 +709,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
               <button onClick={()=>excluirAbast(a)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
@@ -1151,12 +1151,12 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"&#127968;",label:"Dashboard"},
-    {id:"diario",icon:"&#128203;",label:"Diario"},
-    {id:"combustivel",icon:"&#9981;",label:"Combust."},
-    {id:"comparativo",icon:"&#128202;",label:"Comparar"},
-    {id:"historico",icon:"&#128193;",label:"Historico"},
-    {id:"config",icon:"&#9881;",label:"Config."},
+    {id:"dashboard",icon:"🏠",label:"Dashboard"},
+    {id:"diario",icon:"📋",label:"Diario"},
+    {id:"combustivel",icon:"⛽",label:"Combust."},
+    {id:"comparativo",icon:"📊",label:"Comparar"},
+    {id:"historico",icon:"📁",label:"Historico"},
+    {id:"config",icon:"⚙",label:"Config."},
   ];
 
   if(loading)return(
