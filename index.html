@@ -473,8 +473,8 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
               :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>✕</button>
+            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
@@ -637,9 +637,15 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   );
 }
 
-function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,periodoIni,periodoFim}){
+function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,periodoIni,periodoFim}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
   const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
+
+  const excluirAbast=async(a)=>{
+    if(!window.confirm("Excluir abastecimento de "+dataFmt(a.data)+"?"))return;
+    const{error}=await sb.from("abastecimentos").delete().eq("id",a.id);
+    if(!error)onDelete(a.id);else alert("Erro: "+error.message);
+  };
 
   // Periodo do dashboard
   const abastPeriodo=abastecimentos.filter(a=>a.data&&a.data>=periodoIni&&a.data<=periodoFim);
@@ -703,7 +709,8 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,periodoIni,pe
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
+              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>Ed</button>
+              <button onClick={()=>excluirAbast(a)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
@@ -1100,7 +1107,7 @@ function App(){
   const[nav,setNav]=useState("dashboard");
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
-  // Periodo compartilhado — inicializa com dia_ciclo=1, atualiza apos carregar cfg
+  // Periodo compartilhado - inicializa com dia_ciclo=1, atualiza apos carregar cfg
   const[periodoIni,setPeriodoIni]=useState(calcCiclo(1).ini);
   const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
@@ -1144,12 +1151,12 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"🏠",label:"Dashboard"},
-    {id:"diario",icon:"📋",label:"Diario"},
-    {id:"combustivel",icon:"⛽",label:"Combust."},
-    {id:"comparativo",icon:"📊",label:"Comparar"},
-    {id:"historico",icon:"📁",label:"Historico"},
-    {id:"config",icon:"⚙",label:"Config."},
+    {id:"dashboard",icon:"&#127968;",label:"Dashboard"},
+    {id:"diario",icon:"&#128203;",label:"Diario"},
+    {id:"combustivel",icon:"&#9981;",label:"Combust."},
+    {id:"comparativo",icon:"&#128202;",label:"Comparar"},
+    {id:"historico",icon:"&#128193;",label:"Historico"},
+    {id:"config",icon:"&#9881;",label:"Config."},
   ];
 
   if(loading)return(
@@ -1194,7 +1201,7 @@ function App(){
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim}/>}
         {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
-        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
+        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
