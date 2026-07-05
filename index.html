@@ -67,7 +67,8 @@ function gerarCiclos(dia,turnos){
 }
 
 // -- calculos --------------------------------------------------
-function calcPeriodo(turnos,abast,cfg,ini,fim){
+function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
+  const cc=custosCiclo||cfg; // usa custos do ciclo se disponivel, senao usa cfg global
   const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
@@ -75,17 +76,17 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
   const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);
   const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);
-  let kmL=parseN(cfg.autonomia)||7,precoComb=parseN(cfg.preco_litro)||5;
+  let kmL=parseN(cc.autonomia)||7,precoComb=parseN(cc.preco_litro)||5;
   if(cfg.usar_media_comb&&abastP.length>0){
     kmL=abastP.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastP.length;
     precoComb=parseN([...abastP].sort((a,b)=>b.data.localeCompare(a.data))[0].preco);
   }
   const comb_total=kmL>0?(km_total/kmL)*precoComb:0;
-  const pneu_t=km_total*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)));
-  const rev_t=km_total*parseN(cfg.revisao_km);
-  const emer_t=km_total*parseN(cfg.emergencia_km);
+  const pneu_t=km_total*(parseN(cc.pneu_total)/Math.max(1,parseN(cc.pneu_km)));
+  const rev_t=km_total*parseN(cc.revisao_km);
+  const emer_t=km_total*parseN(cc.emergencia_km);
   const dp=Math.max(1,Math.round((new Date(fim+"T12:00:00")-new Date(ini+"T12:00:00"))/(1000*60*60*24))+1);
-  const fixo=(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12)*(dp/30);
+  const fixo=(parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12)*(dp/30);
   const custos_var=comb_total+pneu_t+rev_t+emer_t;
   const custos=custos_var+fixo;
   return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos_var,custos,lucro:bruto-custos,ini,fim,
@@ -231,17 +232,41 @@ function TelaConfig({cfg,userId,onSalvo}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
+  const ca=calcCiclo(form.dia_ciclo||1);
+
+  // Carrega custos do ciclo atual ao abrir
+  useEffect(()=>{
+    const carregar=async()=>{
+      const{data}=await sb.from("custos_ciclo").select("*").eq("user_id",userId).eq("ciclo_ini",ca.ini).single();
+      if(data){
+        setForm(p=>({...p,parcela:data.parcela,ipva:data.ipva,seguro:data.seguro,
+          pneu_total:data.pneu_total,pneu_km:data.pneu_km,revisao_km:data.revisao_km,
+          emergencia_km:data.emergencia_km,autonomia:data.autonomia,preco_litro:data.preco_litro}));
+      }
+    };
+    carregar();
+  },[userId,ca.ini]);
+
   const salvar=async()=>{
     setLoading(true);
-    const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
+    // Salva metas e ciclo na configuracoes (globais)
+    const dadosGlobais={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
     const{data:ex}=await sb.from("configuracoes").select("id").eq("user_id",userId).single();
-    let err=null;
-    if(ex){const{error}=await sb.from("configuracoes").update(dados).eq("user_id",userId);err=error;}
-    else{const{error}=await sb.from("configuracoes").insert({user_id:userId,...dados});err=error;}
-    if(err){alert("Erro: "+err.message);setLoading(false);return;}
+    if(ex){await sb.from("configuracoes").update(dadosGlobais).eq("user_id",userId);}
+    else{await sb.from("configuracoes").insert({user_id:userId,...CFG0,...dadosGlobais});}
+
+    // Salva custos SOMENTE para o ciclo atual (upsert)
+    const dadosCiclo={user_id:userId,ciclo_ini:ca.ini,ciclo_fim:ca.fim,
+      parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),
+      pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),
+      revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),
+      autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro)};
+    await sb.from("custos_ciclo").upsert(dadosCiclo,{onConflict:"user_id,ciclo_ini"});
+
+    // Recarrega config global
     const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();
-    if(novo)onSalvo(novo);
-    setLoading(false);alert("Configuracoes salvas!");
+    if(novo)onSalvo({...novo,...form});
+    setLoading(false);alert("Configuracoes salvas para o ciclo atual!");
   };
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
@@ -855,10 +880,15 @@ function TelaComparativo({turnos}){
 }
 
 // -- HISTORICO -------------------------------------------------
-function TelaHistorico({turnos,abastecimentos,cfg}){
+function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
   const ca=calcCiclo(cfg.dia_ciclo||1);
+  // Busca custos do ciclo correto
+  const getCustosCiclo=(ini)=>{
+    const cc=custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===ini);
+    return cc||cfg;
+  };
   if(ciclos.length===0)return(
     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted,flexDirection:"column",gap:12}}>
       <p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p>
@@ -868,7 +898,7 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <SecTitle t="Historico de ciclos"/>
       {ciclos.map((c,i)=>{
-        const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim);
+        const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim,getCustosCiclo(c.ini));
         const ab=sel===i,isAt=c.ini===ca.ini;
         return(
           <Card key={i} style={{marginBottom:10}}>
@@ -910,10 +940,12 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
 }
 
 // -- DASHBOARD -------------------------------------------------
-function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim}){
+function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim,custosCiclos}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const[dataIni,setDataIni]=[periodoIni,setPeriodoIni];
   const[dataFim,setDataFim]=[periodoFim,setPeriodoFim];
+  // Busca custos do ciclo selecionado
+  const custosDoPeriodo=(custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===dataIni))||cfg;
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
@@ -930,12 +962,12 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
     const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
     mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;if(d.bruto>0){km_total+=d.km;hrs_total+=d.hrs;}});
-    const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim);
+    const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim,custosDoPeriodo);
     return{...full,bruto,viagens,km_total,hrs_total,r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0,lucro:bruto-full.custos};
   };
 
   const mes=calcApp(dataIni,dataFim);
-  const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
+  const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
   const APPS=[{id:"total",label:"Total"},{id:"uber",label:"Uber"},{id:"99",label:"99"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
@@ -1107,6 +1139,7 @@ function App(){
   const[nav,setNav]=useState("dashboard");
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
+  const[custosCiclos,setCustosCiclos]=useState([]);
   // Periodo compartilhado - inicializa com dia_ciclo=1, atualiza apos carregar cfg
   const[periodoIni,setPeriodoIni]=useState(calcCiclo(1).ini);
   const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
@@ -1135,6 +1168,7 @@ function App(){
       }
     }catch(e){console.warn("turnos:",e);}
     try{const{data:a}=await sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false});if(a)setAbast(a);}catch(e){}
+    try{const{data:cc}=await sb.from("custos_ciclo").select("*").eq("user_id",uid);if(cc)setCustosCiclos(cc);}catch(e){}
     setLoading(false);
   };
 
@@ -1199,11 +1233,11 @@ function App(){
         </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim}/>}
+        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim} custosCiclos={custosCiclos}/>}
         {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
         {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
-        {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
+        {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} custosCiclos={custosCiclos}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
       </div>
       <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
