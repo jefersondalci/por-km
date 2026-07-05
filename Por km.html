@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +6,7 @@
 <title>Por km</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -19,18 +18,19 @@ input,button,select{font-family:Arial,sans-serif}
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="react">
 const{useState,useEffect,useCallback,useMemo}=React;
-const supabase=window.supabase.createClient(
+const sb=window.supabase.createClient(
   "https://msxlodutcllvvydqtdob.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk"
 );
 const ADMIN_EMAIL="jefersondalci@gmail.com";
 
-// ── utils ──────────────────────────────────────────────────────
-function fmt(n,dec=2){if(n==null||isNaN(n))return"—";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
-function fmtR(n){return(n==null||isNaN(n))?"—":"R$ "+fmt(n);}
+// -- utils ------------------------------------------------------
+function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
+function fmtR(n){return(n==null||isNaN(n))?"--":"R$ "+fmt(n);}
 function parseN(v){const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n;}
+function fmtHora(h){if(!h||h<=0)return"0h00m";const hh=Math.floor(h);const mm=Math.round((h-hh)*60);return hh+"h"+(mm<10?"0":"")+mm+"m";}
 function horasDiff(h1,h2){if(!h1||!h2)return 0;const[a,b]=[h1,h2].map(h=>{const[hh,mm]=h.split(":").map(Number);return hh*60+mm;});return Math.max(0,(b-a)/60);}
 function hoje(){return new Date().toISOString().slice(0,10);}
 function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/"+y;}
@@ -38,7 +38,7 @@ function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sab"][new Date
 
 const CFG0={meta_km:2.30,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89,dia_ciclo:1,usar_media_comb:false};
 
-// ── ciclo ──────────────────────────────────────────────────────
+// -- ciclo ------------------------------------------------------
 function calcCiclo(dia){
   const d=parseInt(dia)||1,ag=new Date(),dc=ag.getDate();
   let ini,fim;
@@ -66,8 +66,9 @@ function gerarCiclos(dia,turnos){
   return ciclos.reverse();
 }
 
-// ── calculos ──────────────────────────────────────────────────
-function calcPeriodo(turnos,abast,cfg,ini,fim){
+// -- calculos --------------------------------------------------
+function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
+  const cc=custosCiclo||cfg; // usa custos do ciclo se disponivel, senao usa cfg global
   const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
@@ -75,24 +76,24 @@ function calcPeriodo(turnos,abast,cfg,ini,fim){
   const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);
   const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);
-  let kmL=parseN(cfg.autonomia)||7,precoComb=parseN(cfg.preco_litro)||5;
+  let kmL=parseN(cc.autonomia)||7,precoComb=parseN(cc.preco_litro)||5;
   if(cfg.usar_media_comb&&abastP.length>0){
     kmL=abastP.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastP.length;
     precoComb=parseN([...abastP].sort((a,b)=>b.data.localeCompare(a.data))[0].preco);
   }
   const comb_total=kmL>0?(km_total/kmL)*precoComb:0;
-  const pneu_t=km_total*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)));
-  const rev_t=km_total*parseN(cfg.revisao_km);
-  const emer_t=km_total*parseN(cfg.emergencia_km);
+  const pneu_t=km_total*(parseN(cc.pneu_total)/Math.max(1,parseN(cc.pneu_km)));
+  const rev_t=km_total*parseN(cc.revisao_km);
+  const emer_t=km_total*parseN(cc.emergencia_km);
   const dp=Math.max(1,Math.round((new Date(fim+"T12:00:00")-new Date(ini+"T12:00:00"))/(1000*60*60*24))+1);
-  const fixo=(parseN(cfg.parcela)+parseN(cfg.ipva)/12+parseN(cfg.seguro)/12)*(dp/30);
+  const fixo=(parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12)*(dp/30);
   const custos_var=comb_total+pneu_t+rev_t+emer_t;
   const custos=custos_var+fixo;
   return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos_var,custos,lucro:bruto-custos,ini,fim,
     r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0};
 }
 
-// ── Kindle componentes base ───────────────────────────────────
+// -- Kindle componentes base -----------------------------------
 const K={
   bg:"#F5F2EB",card:"#FEFDFB",border:"#D8D4C8",text:"#1A1A1A",
   muted:"#888880",sep:"#EAE7E0",bar:"#3A3A38",
@@ -128,7 +129,7 @@ function Toast({msg}){
   if(!msg)return null;
   return <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px rgba(0,0,0,0.4)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
-// IE bar — linha fina, so o numero e colorido
+// IE bar -- linha fina, so o numero e colorido
 function IEBar({label,real,meta,valor}){
   const ie=meta>0?real/meta:0,ok=ie>=1;
   return <div style={{marginBottom:14}}>
@@ -141,7 +142,7 @@ function IEBar({label,real,meta,valor}){
     </div>
   </div>;
 }
-// Grafico Kindle — barras cinza escuro
+// Grafico Kindle -- barras cinza escuro
 function BarChart({data}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
   const fB=(v)=>v>=1000?"R$"+Math.round(v/1000*10)/10+"k":"R$"+Math.round(v);
@@ -157,7 +158,7 @@ function BarChart({data}){
 }
 const SecTitle=({t})=><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,margin:"16px 0 8px"}}>{t}</p>;
 
-// ── AUTH ──────────────────────────────────────────────────────
+// -- AUTH ------------------------------------------------------
 function TelaAuth({onLogado}){
   const[modo,setModo]=useState("login");
   const[nome,setNome]=useState(""),[email,setEmail]=useState(""),[senha,setSenha]=useState("");
@@ -166,7 +167,7 @@ function TelaAuth({onLogado}){
   const entrar=async()=>{
     if(!email||!senha)return toast("Preencha e-mail e senha.");
     setLoading(true);
-    const{error}=await supabase.auth.signInWithPassword({email,password:senha});
+    const{error}=await sb.auth.signInWithPassword({email,password:senha});
     if(error)toast(error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":error.message);
     else{toast("Bem-vindo!");onLogado();}
     setLoading(false);
@@ -174,7 +175,7 @@ function TelaAuth({onLogado}){
   const recuperar=async()=>{
     if(!email)return toast("Digite seu e-mail primeiro.");
     setLoading(true);
-    const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
+    const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
     if(error)toast("Erro: "+error.message);else toast("E-mail de recuperacao enviado!");
     setLoading(false);
   };
@@ -182,16 +183,16 @@ function TelaAuth({onLogado}){
     if(!nome||!email||!senha)return toast("Preencha todos os campos.");
     if(senha.length<6)return toast("Senha precisa ter 6 caracteres.");
     setLoading(true);
-    const{data,error}=await supabase.auth.signUp({email,password:senha,options:{data:{nome}}});
+    const{data,error}=await sb.auth.signUp({email,password:senha,options:{data:{nome}}});
     if(error){toast(error.message);setLoading(false);return;}
-    if(data.user)await supabase.from("configuracoes").insert({user_id:data.user.id,...CFG0});
+    if(data.user)await sb.from("configuracoes").insert({user_id:data.user.id,...CFG0});
     toast("Conta criada! Verifique seu e-mail.");setModo("login");setLoading(false);
   };
   return(
     <div style={{display:"flex",flexDirection:"column",justifyContent:"center",flex:1,padding:"32px 24px",overflowY:"auto"}}>
       <Toast msg={msg}/>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>🚗</div>
+        <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
@@ -204,7 +205,7 @@ function TelaAuth({onLogado}){
       </div>
       <button onClick={()=>setModo(modo==="login"?"cadastro":"login")}
         style={{marginTop:10,background:"none",border:"1px solid "+K.border,borderRadius:2,padding:11,fontSize:13,color:K.text,cursor:"pointer",width:"100%"}}>
-        {modo==="login"?"Criar conta gratis":"Ja tenho conta — Entrar"}
+        {modo==="login"?"Criar conta gratis":"Ja tenho conta -- Entrar"}
       </button>
       {modo==="login"&&<button onClick={recuperar} disabled={loading}
         style={{marginTop:8,background:"none",border:"none",fontSize:12,color:K.muted,cursor:"pointer",width:"100%",padding:"6px 0"}}>
@@ -214,11 +215,11 @@ function TelaAuth({onLogado}){
   );
 }
 
-// ── AGUARDANDO ────────────────────────────────────────────────
+// -- AGUARDANDO ------------------------------------------------
 function TelaAguardando({onSair}){
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:20}}>⏳</div>
+      <div style={{fontSize:48,marginBottom:20}}>...</div>
       <h2 style={{fontSize:20,fontWeight:700,color:K.text,marginBottom:12}}>Conta em analise</h2>
       <p style={{fontSize:14,color:K.muted,lineHeight:1.7,marginBottom:24}}>Aguarde a ativacao pelo administrador.</p>
       <button onClick={onSair} style={{background:"none",border:"1px solid "+K.border,borderRadius:2,padding:"10px 24px",fontSize:13,color:K.muted,cursor:"pointer"}}>Sair</button>
@@ -226,22 +227,46 @@ function TelaAguardando({onSair}){
   );
 }
 
-// ── CONFIG ────────────────────────────────────────────────────
+// -- CONFIG ----------------------------------------------------
 function TelaConfig({cfg,userId,onSalvo}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
+  const ca=calcCiclo(form.dia_ciclo||1);
+
+  // Carrega custos do ciclo atual ao abrir
+  useEffect(()=>{
+    const carregar=async()=>{
+      const{data}=await sb.from("custos_ciclo").select("*").eq("user_id",userId).eq("ciclo_ini",ca.ini).single();
+      if(data){
+        setForm(p=>({...p,parcela:data.parcela,ipva:data.ipva,seguro:data.seguro,
+          pneu_total:data.pneu_total,pneu_km:data.pneu_km,revisao_km:data.revisao_km,
+          emergencia_km:data.emergencia_km,autonomia:data.autonomia,preco_litro:data.preco_litro}));
+      }
+    };
+    carregar();
+  },[userId,ca.ini]);
+
   const salvar=async()=>{
     setLoading(true);
-    const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
-    const{data:ex}=await supabase.from("configuracoes").select("id").eq("user_id",userId).single();
-    let err=null;
-    if(ex){const{error}=await supabase.from("configuracoes").update(dados).eq("user_id",userId);err=error;}
-    else{const{error}=await supabase.from("configuracoes").insert({user_id:userId,...dados});err=error;}
-    if(err){alert("Erro: "+err.message);setLoading(false);return;}
-    const{data:novo}=await supabase.from("configuracoes").select("*").eq("user_id",userId).single();
-    if(novo)onSalvo(novo);
-    setLoading(false);alert("Configuracoes salvas!");
+    // Salva metas e ciclo na configuracoes (globais)
+    const dadosGlobais={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
+    const{data:ex}=await sb.from("configuracoes").select("id").eq("user_id",userId).single();
+    if(ex){await sb.from("configuracoes").update(dadosGlobais).eq("user_id",userId);}
+    else{await sb.from("configuracoes").insert({user_id:userId,...CFG0,...dadosGlobais});}
+
+    // Salva custos SOMENTE para o ciclo atual (upsert)
+    const dadosCiclo={user_id:userId,ciclo_ini:ca.ini,ciclo_fim:ca.fim,
+      parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),
+      pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),
+      revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),
+      autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro)};
+    await sb.from("custos_ciclo").upsert(dadosCiclo,{onConflict:"user_id,ciclo_ini"});
+
+    // Recarrega config global
+    const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();
+    if(novo)onSalvo({...novo,...form});
+    setLoading(false);alert("Configuracoes salvas para o ciclo atual!");
   };
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
@@ -288,7 +313,7 @@ function TelaConfig({cfg,userId,onSalvo}){
   );
 }
 
-// ── FORMS TURNO ───────────────────────────────────────────────
+// -- FORMS TURNO -----------------------------------------------
 function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});
   return(
@@ -333,7 +358,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   return(
     <Card style={{marginBottom:14}}>
       <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:K.text}}>Encerrando {turno.num}. turno</p>
-      <p style={{fontSize:11,color:K.muted,marginBottom:8}}>Iniciado as {turno.h_i} — KM inicial: {turno.km_i}</p>
+      <p style={{fontSize:11,color:K.muted,marginBottom:8}}>Iniciado as {turno.h_i} -- KM inicial: {turno.km_i}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
         <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
@@ -343,7 +368,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
       <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
       {totalBruto>0&&(
         <div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"—"],["Horas",hrs>0?fmt(hrs,1)+"h":"—"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
+          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
             <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
           ))}
         </div>
@@ -388,17 +413,21 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
   );
 }
 
-// ── DIARIO ───────────────────────────────────────────────────
+// -- DIARIO ---------------------------------------------------
 function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null),[editando,setEditando]=useState(null);
   const[loading,setLoading]=useState(false),[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
-  const totalDias=[...new Set(turnos.map(t=>t.data))].length;
-  const totalKm=turnos.filter(t=>parseN(t.km_f)>0).reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
-  const totalBruto=turnos.filter(t=>parseN(t.bruto)>0).reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
-  const totalViagens=turnos.reduce((s,t)=>s+parseN(t.viagens),0);
+
+  // Medias do ciclo atual
+  const ca=calcCiclo(cfg.dia_ciclo||1);
+  const turnosCiclo=turnos.filter(t=>t.data&&t.data>=ca.ini&&t.data<=ca.fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
+  const totalDias=[...new Set(turnosCiclo.map(t=>t.data))].length;
+  const totalKm=turnosCiclo.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
+  const totalBruto=turnosCiclo.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
+  const totalViagens=turnosCiclo.reduce((s,t)=>s+parseN(t.viagens),0);
 
   const calcT=(t)=>{
     const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f),b=parseN(t.bruto),bonus=parseN(t.bonus);
@@ -419,7 +448,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
   const abrirTurno=async(form)=>{
     setLoading(true);
-    const{data,error}=await supabase.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
+    const{data,error}=await sb.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
     if(!error){onAdd(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -429,20 +458,20 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,
       nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
       part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};
-    const{data,error}=await supabase.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
+    const{data,error}=await sb.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
     if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async(form)=>{
     setLoading(true);
-    const{data,error}=await supabase.from("turnos").update({data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",editando.id).select().single();
+    const{data,error}=await sb.from("turnos").update({data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",editando.id).select().single();
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
   const excluir=async(t)=>{
     if(!window.confirm("Excluir "+t.num+". turno de "+dataFmt(t.data)+"?"))return;
     setLoading(true);
-    const{error}=await supabase.from("turnos").delete().eq("id",t.id);
+    const{error}=await sb.from("turnos").delete().eq("id",t.id);
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -465,17 +494,17 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
     return(
       <Card style={{marginBottom:8}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:13,fontWeight:600,color:K.text}}>{aberto?"":"🕐 "}{t.num}. Turno — {dataFmt(t.data)}</span>
+          <span style={{fontSize:13,fontWeight:600,color:K.text}}>{aberto?"":""}{t.num}. Turno -- {dataFmt(t.data)}</span>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
-              :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"✓":"✗"}</span>}
+              :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
             <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>✕</button>
+            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
           </div>
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"—"}</b></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
         {!aberto&&<>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmt(h,1)}h</b></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmtHora(h)}</b></div>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Viagens / Bruto</span><b style={{color:K.text}}>{t.viagens} / {fmtR(b)}</b></div>
           {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bonus (nao conta no turno)</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Lucro est.</span><b style={{color:lucro>0?K.ok:K.err}}>{fmtR(lucro)}</b></div>
@@ -504,7 +533,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:10,color:K.muted}}>{fmt(res.hrs,1)}h trabalhadas</div>
+          <div style={{fontSize:10,color:K.muted}}>{fmtHora(res.hrs)} trabalhadas</div>
         </div>
       </div>
       {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
@@ -513,11 +542,11 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
           <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?K.ok:K.err}}>{fmtR(rKm)}/km</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus — meta {fmtR(parseN(cfg.meta_km))}/km</div>
+          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_km))}/km</div>
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
           <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?K.ok:K.err}}>{fmtR(rHr)}/h</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus — meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_hora))}/h</div>
         </div>
       </div>
     </Card>
@@ -525,8 +554,11 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      {turnos.length>0&&<>
-        <SecTitle t="Suas medias gerais"/>
+      {turnosCiclo.length>0&&<>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <SecTitle t="Suas medias gerais"/>
+          <span style={{fontSize:10,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span>
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
           {[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(
             <Card key={l} style={{padding:10,textAlign:"center"}}>
@@ -544,7 +576,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       </div>
       {modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
       {modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-      {editando&&<FormTurnoEdit titulo={"Editar — "+editando.num+". turno ("+dataFmt(editando.data)+")"}
+      {editando&&<FormTurnoEdit titulo={"Editar -- "+editando.num+". turno ("+dataFmt(editando.data)+")"}
         inicial={{data:editando.data,num:editando.num,km_i:editando.km_i,km_f:editando.km_f||"",h_i:editando.h_i||"",h_f:editando.h_f||"",bruto:editando.bruto||"",viagens:editando.viagens||"",bonus:editando.bonus||""}}
         onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
       {turnosHoje.length===0&&!modo&&!editando&&(
@@ -558,7 +590,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
       {turnosHojeFechados.length>0&&(
         <div style={{background:K.card,borderRadius:2,padding:14,marginBottom:16,border:"1px solid "+K.border}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do dia — IA</span>
+            <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do dia -- IA</span>
             <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>
               {loadingAI?"Analisando...":"Analisar"}
             </button>
@@ -591,7 +623,7 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   );
 }
 
-// ── COMBUSTIVEL ───────────────────────────────────────────────
+// -- COMBUSTIVEL -----------------------------------------------
 function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   const isGNV=dados.tipo==="GNV";
   const quant=parseN(dados.litros);
@@ -630,23 +662,41 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
   );
 }
 
-function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
+function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,periodoIni,periodoFim}){
   const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
   const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
-  const media=abastecimentos.length>0?abastecimentos.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastecimentos.length:0;
-  const totalGasto=abastecimentos.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
-  const totalLitros=abastecimentos.reduce((s,a)=>s+parseN(a.litros),0);
+
+  const excluirAbast=async(a)=>{
+    if(!window.confirm("Excluir abastecimento de "+dataFmt(a.data)+"?"))return;
+    const{error}=await sb.from("abastecimentos").delete().eq("id",a.id);
+    if(!error)onDelete(a.id);else alert("Erro: "+error.message);
+  };
+
+  // Periodo do dashboard
+  const abastPeriodo=abastecimentos.filter(a=>a.data&&a.data>=periodoIni&&a.data<=periodoFim);
+
+  // Ultimos 4 para medias
+  const ultimos4=abastecimentos.slice(0,4);
+  const media=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/ultimos4.length:0;
+  const mediaPreco=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.preco),0)/ultimos4.length:0;
+
+  // Volume e gasto do periodo selecionado no dashboard
+  const totalGasto=abastPeriodo.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
+  const totalLitros=abastPeriodo.reduce((s,a)=>s+parseN(a.litros),0);
+
+  // Grafico: ultimos 6 abastecimentos
+  const abastGrafico=abastecimentos.slice(0,6);
   const salvar=async()=>{
     if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
     setLoading(true);
-    const{data,error}=await supabase.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
+    const{data,error}=await sb.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
     if(!error){onAdd(data);setMostrar(false);setForm({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});}
     else alert("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async()=>{
     setLoading(true);
-    const{data,error}=await supabase.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();
+    const{data,error}=await sb.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();
     if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
     setLoading(false);
   };
@@ -657,21 +707,21 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
         <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L",fmt(media)],["Custo med./km","R$"+fmt(media>0?(abastecimentos.reduce((s,a)=>s+parseN(a.preco),0)/Math.max(1,abastecimentos.length))/media:0,3)],["Total volume",fmt(totalLitros,1)],["Total gasto",fmtR(totalGasto)]].map(([l,v])=>(
+        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)]].map(([l,v])=>(
           <Card key={l} style={{padding:10,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
             <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
           </Card>
         ))}
       </div>
-      {abastecimentos.length>1&&(
+      {abastGrafico.length>1&&(
         <Card style={{marginBottom:14}}>
-          <SecTitle t="Evolucao km/L"/>
-          <BarChart data={[...abastecimentos].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
+          <SecTitle t="Evolucao km/L (ult. 6)"/>
+          <BarChart data={[...abastGrafico].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
         </Card>
       )}
       {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
-      {editando&&<FormAbast titulo={"Editar — "+dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
+      {editando&&<FormAbast titulo={"Editar -- "+dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
       <SecTitle t="Historico"/>
       {abastecimentos.length===0&&<p style={{color:K.muted,textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
       {abastecimentos.map(a=>{
@@ -685,6 +735,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
                 <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
               </div>
               <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
+              <button onClick={()=>excluirAbast(a)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
               {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
@@ -701,7 +752,7 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate}){
   );
 }
 
-// ── COMPARATIVO ───────────────────────────────────────────────
+// -- COMPARATIVO -----------------------------------------------
 function TelaComparativo({turnos}){
   const semanas=useMemo(()=>{
     if(!turnos.length)return[];
@@ -787,7 +838,7 @@ function TelaComparativo({turnos}){
         </div>
       </Card>
       <Card style={{marginBottom:14}}>
-        <SecTitle t={"Detalhamento — "+(metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto")}/>
+        <SecTitle t={"Detalhamento -- "+(metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto")}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid "+K.sep}}>
           {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:K.muted,textAlign:"center"}}>{h}</div>)}
         </div>
@@ -799,25 +850,25 @@ function TelaComparativo({turnos}){
           return(
             <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid "+K.sep,alignItems:"center"}}>
               <div style={{fontSize:12,fontWeight:600,color:K.text,textAlign:"center"}}>{ds}</div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{vA&&vA>0?fmtR(vA):"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dA?dA.viagens+"v":"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{vB&&vB>0?fmtR(vB):"—"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dB?dB.viagens+"v":"—"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{vA&&vA>0?fmtR(vA):"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dA?dA.viagens+"v":"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{vB&&vB>0?fmtR(vB):"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dB?dB.viagens+"v":"--"}</span></div>
               <div style={{textAlign:"center"}}>
-                {diff!=null?<span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:K.muted}}>—</span>}
+                {diff!=null?<span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:K.muted}}>--</span>}
               </div>
             </div>
           );
         })}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"1px solid "+K.border}}>
           <div style={{fontSize:10,fontWeight:700,color:K.muted,textAlign:"center"}}>Med.</div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"—";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"—"}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
           <div style={{textAlign:"center"}}>{(()=>{
             const mA=diasA.filter(d=>d[metrica]>0),mB=diasB.filter(d=>d[metrica]>0);
-            if(!mA.length||!mB.length)return <span style={{fontSize:10,color:K.muted}}>—</span>;
+            if(!mA.length||!mB.length)return <span style={{fontSize:10,color:K.muted}}>--</span>;
             const vA=mA.reduce((s,d)=>s+d[metrica],0)/mA.length,vB=mB.reduce((s,d)=>s+d[metrica],0)/mB.length;
             const diff=vA>0?((vB-vA)/vA)*100:0;
             return <span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>;
@@ -828,11 +879,16 @@ function TelaComparativo({turnos}){
   );
 }
 
-// ── HISTORICO ─────────────────────────────────────────────────
-function TelaHistorico({turnos,abastecimentos,cfg}){
+// -- HISTORICO -------------------------------------------------
+function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
   const ca=calcCiclo(cfg.dia_ciclo||1);
+  // Busca custos do ciclo correto
+  const getCustosCiclo=(ini)=>{
+    const cc=custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===ini);
+    return cc||cfg;
+  };
   if(ciclos.length===0)return(
     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted,flexDirection:"column",gap:12}}>
       <p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p>
@@ -842,7 +898,7 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <SecTitle t="Historico de ciclos"/>
       {ciclos.map((c,i)=>{
-        const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim);
+        const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim,getCustosCiclo(c.ini));
         const ab=sel===i,isAt=c.ini===ca.ini;
         return(
           <Card key={i} style={{marginBottom:10}}>
@@ -851,7 +907,7 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
                 <p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:10,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p>
                 <p style={{fontSize:12,color:m.lucro>=0?K.ok:K.err,marginTop:2}}>{fmtR(m.lucro)} lucro / {m.dias} dias</p>
               </div>
-              <span style={{color:K.muted,fontSize:14}}>{ab?"▲":"▼"}</span>
+              <span style={{color:K.muted,fontSize:14}}>{ab?"[-]":"[+]"}</span>
             </div>
             {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+K.sep}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
@@ -862,7 +918,15 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
                   </div>
                 ))}
               </div>
-              {[["R$/km",fmtR(m.r_km)],["R$/hora",fmtR(m.r_hr)],["Custos fixos",fmtR(m.fixo)],["Custos variaveis",fmtR(m.custos_var)]].map(([l,v])=>(
+              {[
+                ["R$/km",fmtR(m.r_km)],
+                ["R$/hora",fmtR(m.r_hr)],
+                ["Custo/km",fmtR(m.custos/Math.max(1,m.km_total))],
+                ["Total horas",fmtHora(m.hrs_total)],
+                ["Media h/dia",fmtHora(m.dias>0?m.hrs_total/m.dias:0)+"/dia"],
+                ["Custos fixos",fmtR(m.fixo)],
+                ["Custos variaveis",fmtR(m.custos_var)]
+              ].map(([l,v])=>(
                 <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid "+K.sep}}>
                   <span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{v}</b>
                 </div>
@@ -875,10 +939,13 @@ function TelaHistorico({turnos,abastecimentos,cfg}){
   );
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────
-function TelaDashboard({turnos,abastecimentos,cfg}){
+// -- DASHBOARD -------------------------------------------------
+function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim,custosCiclos}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
-  const[dataIni,setDataIni]=useState(ca.ini),[dataFim,setDataFim]=useState(ca.fim);
+  const[dataIni,setDataIni]=[periodoIni,setPeriodoIni];
+  const[dataFim,setDataFim]=[periodoFim,setPeriodoFim];
+  // Busca custos do ciclo selecionado
+  const custosDoPeriodo=(custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===dataIni))||cfg;
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
@@ -895,13 +962,13 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
     const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
     mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;if(d.bruto>0){km_total+=d.km;hrs_total+=d.hrs;}});
-    const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim);
+    const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim,custosDoPeriodo);
     return{...full,bruto,viagens,km_total,hrs_total,r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0,lucro:bruto-full.custos};
   };
 
   const mes=calcApp(dataIni,dataFim);
-  const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim);
-  const APPS=[{id:"total",label:"Total"},{id:"uber",label:"Uber"},{id:"99",label:"99"},{id:"part",label:"Particular"}];
+  const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
+  const APPS=[{id:"total",label:"Total"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
@@ -975,7 +1042,7 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t={"Lucro por semana — "+APPS.find(a=>a.id===appFiltro)?.label}/>
+        <SecTitle t={"Lucro por semana -- "+APPS.find(a=>a.id===appFiltro)?.label}/>
         <BarChart data={semanasDociclo}/>
       </Card>
       <Card style={{marginBottom:10}}>
@@ -993,13 +1060,13 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
         <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div>
       </Card>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"—"],["Horas/dia",mes.dias>0?fmt(mes.hrs_total/mes.dias,1)+"h":"—"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"—"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"—"]].map(([l,v])=>(
+        {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmtHora(mes.hrs_total/mes.dias):"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(
           <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>
         ))}
       </div>
       <div style={{background:K.card,borderRadius:2,padding:14,border:"1px solid "+K.border}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do ciclo — IA</span>
+          <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do ciclo -- IA</span>
           <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button>
         </div>
         {aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.8}}>{aiMsg}</p>
@@ -1009,14 +1076,14 @@ function TelaDashboard({turnos,abastecimentos,cfg}){
   );
 }
 
-// ── ADMIN ─────────────────────────────────────────────────────
+// -- ADMIN -----------------------------------------------------
 function TelaAdmin({onSair}){
   const[usuarios,setUsuarios]=useState([]),[loading,setLoading]=useState(true);
   const[busca,setBusca]=useState(""),[filtro,setFiltro]=useState("todos");
-  useEffect(()=>{supabase.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);
+  useEffect(()=>{sb.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);
   const toggleAtivo=async(u)=>{
     const n=!u.ativo;
-    await supabase.from("usuarios_controle").update({ativo:n,data_ativacao:n?new Date().toISOString():null}).eq("id",u.id);
+    await sb.from("usuarios_controle").update({ativo:n,data_ativacao:n?new Date().toISOString():null}).eq("id",u.id);
     setUsuarios(p=>p.map(x=>x.id===u.id?{...x,ativo:n}:x));
   };
   const filtrados=usuarios.filter(u=>{
@@ -1052,13 +1119,13 @@ function TelaAdmin({onSair}){
             <div>
               <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p>
               <p style={{fontSize:11,color:"#888"}}>{u.email}</p>
-              <p style={{fontSize:10,color:"#666",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"—"}</p>
+              <p style={{fontSize:10,color:"#666",marginTop:2}}>Cadastro: {u.data_cadastro?new Date(u.data_cadastro).toLocaleDateString("pt-BR"):"--"}</p>
             </div>
             <button onClick={()=>toggleAtivo(u)} style={{padding:"7px 12px",borderRadius:2,border:"none",background:u.ativo?"#7B1010":"#1B4332",color:u.ativo?"#FF6B6B":"#69DB7C",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
               {u.ativo?"Desativar":"Ativar"}
             </button>
           </div>
-          <input defaultValue={u.observacoes||""} onBlur={e=>supabase.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observacoes (ex: Pagou em 10/05)"
+          <input defaultValue={u.observacoes||""} onBlur={e=>sb.from("usuarios_controle").update({observacoes:e.target.value}).eq("id",u.id)} placeholder="Observacoes (ex: Pagou em 10/05)"
             style={{width:"100%",border:"1px solid #333",borderRadius:2,padding:"7px 10px",fontSize:12,background:"#111",color:"#FFF",outline:"none",boxSizing:"border-box"}}/>
         </div>
       ))}
@@ -1066,60 +1133,76 @@ function TelaAdmin({onSair}){
   );
 }
 
-// ── APP PRINCIPAL ─────────────────────────────────────────────
+// -- APP PRINCIPAL ---------------------------------------------
 function App(){
   const[session,setSession]=useState(null),[loading,setLoading]=useState(true);
   const[nav,setNav]=useState("dashboard");
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
+  const[custosCiclos,setCustosCiclos]=useState([]);
+  // Periodo compartilhado - inicializa com dia_ciclo=1, atualiza apos carregar cfg
+  const[periodoIni,setPeriodoIni]=useState(calcCiclo(1).ini);
+  const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
 
   const carregarDados=async(uid)=>{
     setLoading(true);
+    try{const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();setControle(ctrl||null);}catch(e){}
     try{
-      const{data:ctrl}=await supabase.from("usuarios_controle").select("*").eq("user_id",uid).single();
-      setControle(ctrl||null);
-      const[{data:c},{data:t},{data:a}]=await Promise.all([
-        supabase.from("configuracoes").select("*").eq("user_id",uid).single(),
-        supabase.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false}),
-        supabase.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false}),
-      ]);
-      if(c)setCfg(c);if(t)setTurnos(t);if(a)setAbast(a);
-    }catch(e){console.warn(e);}
+      const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();
+      if(c){
+        setCfg(c);
+        // Atualiza periodo com o dia_ciclo real do usuario
+        const ca=calcCiclo(c.dia_ciclo||1);
+        setPeriodoIni(ca.ini);
+        setPeriodoFim(ca.fim);
+      }
+    }catch(e){}
+    try{
+      const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});
+      if(t){
+        setTurnos(t);
+        // Se tiver turno aberto hoje, navega para o diario
+        const turnoAberto=t.find(x=>x.data===hoje()&&x.km_i&&(!x.km_f||!x.bruto));
+        if(turnoAberto)setNav("diario");
+      }
+    }catch(e){console.warn("turnos:",e);}
+    try{const{data:a}=await sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false});if(a)setAbast(a);}catch(e){}
+    try{const{data:cc}=await sb.from("custos_ciclo").select("*").eq("user_id",uid);if(cc)setCustosCiclos(cc);}catch(e){}
     setLoading(false);
   };
 
   useEffect(()=>{
     const timer=setTimeout(()=>setLoading(false),6000);
-    supabase.auth.getSession().then(({data:{session}})=>{
+    sb.auth.getSession().then(({data:{session}})=>{
       clearTimeout(timer);setSession(session);
       if(session)carregarDados(session.user.id);else setLoading(false);
     }).catch(()=>{clearTimeout(timer);setLoading(false);});
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});
     return()=>subscription.unsubscribe();
   },[]);
 
-  const sair=async()=>{await supabase.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
+  const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"▦",label:"Dashboard"},
-    {id:"diario",icon:"▤",label:"Diario"},
-    {id:"combustivel",icon:"⬡",label:"Combust."},
-    {id:"comparativo",icon:"▥",label:"Comparar"},
-    {id:"historico",icon:"▣",label:"Historico"},
-    {id:"config",icon:"◎",label:"Config."},
+    {id:"dashboard",icon:"🏠",label:"Dashboard"},
+    {id:"diario",icon:"📋",label:"Diario"},
+    {id:"combustivel",icon:"⛽",label:"Combust."},
+    {id:"comparativo",icon:"📊",label:"Comparar"},
+    {id:"historico",icon:"📁",label:"Historico"},
+    {id:"config",icon:"⚙",label:"Config."},
   ];
 
   if(loading)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}>
-      <div style={{fontSize:32}}>🚗</div>
+      <div style={{fontSize:32,fontFamily:"Arial"}}>&#128663;</div>
       <p style={{color:K.muted,fontSize:14}}>Carregando...</p>
     </div>
   );
 
   if(!session)return(
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
-      <TelaAuth onLogado={()=>supabase.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
+      <TelaAuth onLogado={()=>sb.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
     </div>
   );
 
@@ -1150,18 +1233,18 @@ function App(){
         </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
+        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim} custosCiclos={custosCiclos}/>}
         {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
-        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))}/>}
+        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
-        {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg}/>}
+        {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} custosCiclos={custosCiclos}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
       </div>
       <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
           <button key={n.id} onClick={()=>setNav(n.id)}
             style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:16,color:nav===n.id?K.text:K.muted}}>{n.icon}</span>
+            <span style={{fontSize:18,color:nav===n.id?K.text:K.muted}}>{n.icon}</span>
             <span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
           </button>
         ))}
