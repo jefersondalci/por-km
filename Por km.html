@@ -526,14 +526,18 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const ResumoDiaCard=({res,rKm,rHr,tot})=>(
     <Card style={{marginBottom:12}}>
       <SecTitle t="Resumo do dia"/>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
-          <div style={{fontSize:17,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
-          <div style={{fontSize:10,color:K.muted}}>Bruto total c/ bonus</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
+          <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
+          <div style={{fontSize:9,color:K.muted}}>Bruto c/ bonus</div>
         </div>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:10,color:K.muted}}>{fmtHora(res.hrs)} trabalhadas</div>
+          <div style={{fontSize:9,color:K.muted}}>Viagens / KM</div>
+        </div>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
+          <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtHora(res.hrs)}</div>
+          <div style={{fontSize:9,color:K.muted}}>Horas trabalhadas</div>
         </div>
       </div>
       {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
@@ -968,7 +972,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
 
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
-  const APPS=[{id:"total",label:"Aplicativos"},{id:"part",label:"Particular"}];
+  const APPS=[{id:"total",label:"Uber / 99"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
