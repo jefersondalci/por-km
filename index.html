@@ -2,8 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>Por km</title>
+<title>Por km v1.4</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
@@ -194,6 +197,7 @@ function TelaAuth({onLogado}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
+        <p style={{color:K.muted,fontSize:11,margin:"2px 0 0",fontFamily:"Arial,sans-serif"}}>v1.4</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/>}
@@ -526,14 +530,18 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const ResumoDiaCard=({res,rKm,rHr,tot})=>(
     <Card style={{marginBottom:12}}>
       <SecTitle t="Resumo do dia"/>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
-          <div style={{fontSize:17,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
-          <div style={{fontSize:10,color:K.muted}}>Bruto total c/ bonus</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
+          <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
+          <div style={{fontSize:9,color:K.muted}}>Bruto c/ bonus</div>
         </div>
-        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 10px"}}>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:10,color:K.muted}}>{fmtHora(res.hrs)} trabalhadas</div>
+          <div style={{fontSize:9,color:K.muted}}>Viagens / KM</div>
+        </div>
+        <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
+          <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtHora(res.hrs)}</div>
+          <div style={{fontSize:9,color:K.muted}}>Horas trabalhadas</div>
         </div>
       </div>
       {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
@@ -968,7 +976,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
 
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
-  const APPS=[{id:"total",label:"Total"},{id:"part",label:"Particular"}];
+  const APPS=[{id:"total",label:"Uber / 99"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
@@ -1225,7 +1233,7 @@ function App(){
   return(
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
       <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km</h1>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km <span style={{fontSize:10,color:K.muted,fontWeight:400}}>v1.4</span></h1>
         <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
