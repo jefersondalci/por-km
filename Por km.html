@@ -968,7 +968,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
 
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
-  const APPS=[{id:"total",label:"Total"},{id:"part",label:"Particular"}];
+  const APPS=[{id:"total",label:"Aplicativos"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
