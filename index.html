@@ -232,7 +232,7 @@ function TelaAguardando({onSair}){
 }
 
 // -- CONFIG ----------------------------------------------------
-function TelaConfig({cfg,userId,onSalvo}){
+function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
@@ -267,9 +267,12 @@ function TelaConfig({cfg,userId,onSalvo}){
       autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro)};
     await sb.from("custos_ciclo").upsert(dadosCiclo,{onConflict:"user_id,ciclo_ini"});
 
-    // Recarrega config global
+    // Recarrega config global e custos do ciclo
     const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();
-    if(novo)onSalvo({...novo,...form});
+    if(novo)onSalvo(novo);
+    // Recarrega custos do ciclo para atualizar o dashboard
+    const{data:cc}=await sb.from("custos_ciclo").select("*").eq("user_id",userId);
+    if(cc)onSalvoCustos(cc);
     setLoading(false);alert("Configuracoes salvas para o ciclo atual!");
   };
   return(
