@@ -1366,7 +1366,7 @@ function App(){
         {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
         {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} custosCiclos={custosCiclos}/>}
-        {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)}/>}
+        {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)} onSalvoCustos={cc=>setCustosCiclos(cc)}/>}
       </div>
       <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
