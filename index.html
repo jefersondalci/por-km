@@ -376,8 +376,8 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
       <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
       {totalBruto>0&&(
         <div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Total bruto",fmtR(totalBruto)]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
+          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Bruto",fmtR(totalBruto)],["Bonus",fmtR(totalBonus)],["Total c/bonus",fmtR(totalBruto+totalBonus)],["Viagens",totalViagens+"v"]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
           ))}
         </div>
       )}
@@ -387,7 +387,7 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
           if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");
           if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");
           if(totalViagens===0)return alert("Informe o numero de viagens.");
-          onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:0,
+          onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:totalBonus,
             uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),
             nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),
             part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)});
