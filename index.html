@@ -88,8 +88,7 @@ function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
   const pneu_t=km_total*(parseN(cc.pneu_total)/Math.max(1,parseN(cc.pneu_km)));
   const rev_t=km_total*parseN(cc.revisao_km);
   const emer_t=km_total*parseN(cc.emergencia_km);
-  const dp=Math.max(1,Math.round((new Date(fim+"T12:00:00")-new Date(ini+"T12:00:00"))/(1000*60*60*24))+1);
-  const fixo=(parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12)*(dp/30);
+  const fixo=parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12;
   const custos_var=comb_total+pneu_t+rev_t+emer_t;
   const custos=custos_var+fixo;
   return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos_var,custos,lucro:bruto-custos,ini,fim,
@@ -1061,11 +1060,20 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
         <SecTitle t="Custos fixos"/>
         {(()=>{
           const dp=Math.max(1,Math.round((new Date(dataFim+"T12:00:00")-new Date(dataIni+"T12:00:00"))/(1000*60*60*24))+1);
-          return[["Parcela do carro",parseN(custosDoPeriodo.parcela)*(dp/30)],["IPVA (proporcional)",parseN(custosDoPeriodo.ipva)/12*(dp/30)],["Seguro (proporcional)",parseN(custosDoPeriodo.seguro)/12*(dp/30)]].map(([l,v])=>(
-            <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{fmtR(v)}</b></div>
+          return[
+            ["Parcela do carro",parseN(custosDoPeriodo.parcela)],
+            ["IPVA (proporcional)",parseN(custosDoPeriodo.ipva)/12],
+            ["Seguro (proporcional)",parseN(custosDoPeriodo.seguro)/12]
+          ].map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}>
+              <span style={{color:K.muted}}>{l}</span>
+              <b style={{color:K.text}}>{fmtR(v)}</b>
+            </div>
           ));
         })()}
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}>
+          <span>Total fixo</span><span>{fmtR(mes.fixo)}</span>
+        </div>
       </Card>
       <Card style={{marginBottom:10}}>
         <SecTitle t="Custos variaveis"/>
