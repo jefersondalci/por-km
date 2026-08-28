@@ -163,7 +163,7 @@ const SecTitle=({t})=><p style={{fontSize:10,fontWeight:700,color:K.muted,textTr
 // -- AUTH ------------------------------------------------------
 function TelaAuth({onLogado}){
   const[modo,setModo]=useState("login");
-  const[nome,setNome]=useState(""),[email,setEmail]=useState(""),[senha,setSenha]=useState("");
+  const[nome,setNome]=useState(""),[email,setEmail]=useState(""),[senha,setSenha]=useState(""),[tel,setTel]=useState("");
   const[loading,setLoading]=useState(false),[msg,setMsg]=useState("");
   const toast=(m)=>{setMsg(m);setTimeout(()=>setMsg(""),4000);};
   const entrar=async()=>{
@@ -187,7 +187,10 @@ function TelaAuth({onLogado}){
     setLoading(true);
     const{data,error}=await sb.auth.signUp({email,password:senha,options:{data:{nome}}});
     if(error){toast(error.message);setLoading(false);return;}
-    if(data.user)await sb.from("configuracoes").insert({user_id:data.user.id,...CFG0});
+    if(data.user){
+      await sb.from("configuracoes").insert({user_id:data.user.id,...CFG0});
+      if(tel)await sb.from("usuarios_controle").update({telefone:tel,nome}).eq("user_id",data.user.id);
+    }
     toast("Conta criada! Verifique seu e-mail.");setModo("login");setLoading(false);
   };
   return(
@@ -199,7 +202,10 @@ function TelaAuth({onLogado}){
         <p style={{color:K.muted,fontSize:11,margin:"2px 0 0",fontFamily:"Arial,sans-serif"}}>v1.4</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
-      {modo==="cadastro"&&<Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/>}
+      {modo==="cadastro"&&<>
+        <Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/>
+        <Inp label="WhatsApp (com DDD)" type="number" value={tel} onChange={setTel} placeholder="21999999999"/>
+      </>}
       <Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com"/>
       <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Minimo 6 caracteres"/>
       <div style={{marginTop:20}}>
@@ -1198,12 +1204,34 @@ function TelaAdmin({onSair}){
             <div>
               <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p>
               <p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.email}</p>
+              {u.telefone&&<p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.telefone}</p>}
               {u.vencimento&&!u.vitalicio&&<p style={{fontSize:9,color:vencendo.find(x=>x.id===u.id)?"#FFD43B":"#555",fontFamily:"Arial,sans-serif"}}>Vence: {dataFmt(u.vencimento)}</p>}
             </div>
           </div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
             <PlanoTag u={u}/>
             <span style={{fontSize:9,color:u.ativo?"#69DB7C":"#FF6B6B",fontFamily:"Arial,sans-serif"}}>{u.ativo?"Ativo":"Bloqueado"}</span>
+            {u.telefone&&(
+              <a href={"https://wa.me/55"+u.telefone.replace(/\D/g,"")+
+                "?text="+encodeURIComponent(
+                  "Ola "+(u.nome?u.nome.split(" ")[0]:"")+"! Tudo bem?\n\n"+
+                  "Vi que voce criou uma conta no *Por km* e queria te apresentar o app pessoalmente.\n\n"+
+                  "O *Por km* foi criado por um motorista com mais de 20 anos de experiencia em transporte, "+
+                  "para te ajudar a saber exatamente quanto voce lucra por km e por hora rodados.\n\n"+
+                  "Com ele voce:\n"+
+                  "✅ Registra seus turnos e acompanha R$/km e R$/hora em tempo real\n"+
+                  "✅ Ve o lucro real descontando combustivel, pneu, parcela e revisao\n"+
+                  "✅ Compara semanas e descobre seus melhores horarios\n"+
+                  "✅ Tem analise de IA do seu dia e do seu ciclo\n\n"+
+                  "A assinatura e so *R$ 14,90/mes* — menos de R$ 0,50 por dia.\n\n"+
+                  "Posso te liberar o acesso agora. Quer experimentar? 🚗"
+                )}
+                target="_blank"
+                onClick={e=>e.stopPropagation()}
+                style={{display:"flex",alignItems:"center",gap:4,background:"#25D366",color:"#FFF",padding:"4px 8px",borderRadius:4,fontSize:11,fontWeight:700,textDecoration:"none"}}>
+                WhatsApp
+              </a>
+            )}
           </div>
         </div>
       ))}
