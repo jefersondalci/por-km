@@ -1291,8 +1291,17 @@ function TelaAdmin({onSair}){
               placeholder="Ex: Pagou em 10/07 via PIX"
               style={{width:"100%",background:"#222",border:"1px solid #333",borderRadius:8,padding:"10px 12px",fontSize:13,color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:16}}/>
             <button onClick={()=>salvarUsuario(selecionado)}
-              style={{width:"100%",padding:14,borderRadius:8,border:"none",background:"#69DB7C",color:"#111",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+              style={{width:"100%",padding:14,borderRadius:8,border:"none",background:"#69DB7C",color:"#111",fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}>
               Salvar alteracoes
+            </button>
+            <button onClick={async()=>{
+              if(!window.confirm("Excluir usuario "+selecionado.email+"? Esta acao nao pode ser desfeita."))return;
+              await sb.from("usuarios_controle").delete().eq("id",selecionado.id);
+              setUsuarios(p=>p.filter(x=>x.id!==selecionado.id));
+              setSelecionado(null);
+              alert("Usuario excluido!");
+            }} style={{width:"100%",padding:12,borderRadius:8,border:"1px solid #7B1010",background:"transparent",color:"#FF6B6B",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+              Excluir cadastro
             </button>
           </div>
         </div>
