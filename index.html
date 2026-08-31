@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>Por km v1.5</title>
+<title>Por km v1.4</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
@@ -38,12 +38,6 @@ function horasDiff(h1,h2){if(!h1||!h2)return 0;const[a,b]=[h1,h2].map(h=>{const[
 function hoje(){return new Date().toISOString().slice(0,10);}
 function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/"+y;}
 function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sab"][new Date(d+"T12:00:00").getDay()];}
-
-// -- VERIFICAÇÃO DE PLANO ---------------------------------------
-function ehPro(controle){
-  if(!controle)return false;
-  return controle.vitalicio || controle.plano==="pago";
-}
 
 const CFG0={meta_km:2.30,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89,dia_ciclo:1,usar_media_comb:false};
 
@@ -77,7 +71,7 @@ function gerarCiclos(dia,turnos){
 
 // -- calculos --------------------------------------------------
 function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
-  const cc=custosCiclo||cfg;
+  const cc=custosCiclo||cfg; // usa custos do ciclo se disponivel, senao usa cfg global
   const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const dias=[...new Set(mes.map(t=>t.data))].length;
   const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
@@ -137,6 +131,7 @@ function Toast({msg}){
   if(!msg)return null;
   return <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px rgba(0,0,0,0.4)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
+// IE bar -- linha fina, so o numero e colorido
 function IEBar({label,real,meta,valor}){
   const ie=meta>0?real/meta:0,ok=ie>=1;
   return <div style={{marginBottom:14}}>
@@ -149,6 +144,7 @@ function IEBar({label,real,meta,valor}){
     </div>
   </div>;
 }
+// Grafico Kindle -- barras cinza escuro
 function BarChart({data}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
   const fB=(v)=>v>=1000?"R$"+Math.round(v/1000*10)/10+"k":"R$"+Math.round(v);
@@ -163,21 +159,6 @@ function BarChart({data}){
   </div>;
 }
 const SecTitle=({t})=><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,margin:"16px 0 8px"}}>{t}</p>;
-
-// -- COMPONENTE DE UPGRADE (FREEMIUM) --------------------------
-function UpgradeCard({titulo,descricao,icone="🔒"}){
-  return(
-    <Card style={{textAlign:"center",padding:30,border:"2px dashed "+K.text,margin:"20px 0"}}>
-      <div style={{fontSize:48,marginBottom:16}}>{icone}</div>
-      <p style={{fontSize:16,fontWeight:700,color:K.text,marginBottom:8}}>{titulo}</p>
-      <p style={{fontSize:13,color:K.muted,lineHeight:1.7,marginBottom:20}}>{descricao}</p>
-      <Btn onClick={()=>alert("Para implementar pagamentos, integre com Stripe, Mercado Pago ou Pagar.me\n\nEntre em contato: jefersondalci@gmail.com")}>
-        Fazer Upgrade por R$ 14,90/mês
-      </Btn>
-      <p style={{fontSize:11,color:K.muted,marginTop:12}}>Menos de R$ 0,50 por dia</p>
-    </Card>
-  );
-}
 
 // -- AUTH ------------------------------------------------------
 function TelaAuth({onLogado}){
@@ -218,7 +199,7 @@ function TelaAuth({onLogado}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:11,margin:"2px 0 0",fontFamily:"Arial,sans-serif"}}>v1.5</p>
+        <p style={{color:K.muted,fontSize:11,margin:"2px 0 0",fontFamily:"Arial,sans-serif"}}>v1.4</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<>
@@ -262,6 +243,7 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
   const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});
   const ca=calcCiclo(form.dia_ciclo||1);
 
+  // Carrega custos do ciclo atual ao abrir
   useEffect(()=>{
     const carregar=async()=>{
       const{data}=await sb.from("custos_ciclo").select("*").eq("user_id",userId).eq("ciclo_ini",ca.ini).single();
@@ -276,11 +258,13 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
 
   const salvar=async()=>{
     setLoading(true);
+    // Salva metas e ciclo na configuracoes (globais)
     const dadosGlobais={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
     const{data:ex}=await sb.from("configuracoes").select("id").eq("user_id",userId).single();
     if(ex){await sb.from("configuracoes").update(dadosGlobais).eq("user_id",userId);}
     else{await sb.from("configuracoes").insert({user_id:userId,...CFG0,...dadosGlobais});}
 
+    // Salva custos SOMENTE para o ciclo atual (upsert)
     const dadosCiclo={user_id:userId,ciclo_ini:ca.ini,ciclo_fim:ca.fim,
       parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),
       pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),
@@ -288,8 +272,10 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
       autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro)};
     await sb.from("custos_ciclo").upsert(dadosCiclo,{onConflict:"user_id,ciclo_ini"});
 
+    // Recarrega config global e custos do ciclo
     const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();
     if(novo)onSalvo(novo);
+    // Recarrega custos do ciclo para atualizar o dashboard
     const{data:cc}=await sb.from("custos_ciclo").select("*").eq("user_id",userId);
     if(cc)onSalvoCustos(cc);
     setLoading(false);alert("Configuracoes salvas para o ciclo atual!");
@@ -441,13 +427,14 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
 }
 
 // -- DIARIO ---------------------------------------------------
-function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete,controle}){
+function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null),[editando,setEditando]=useState(null);
   const[loading,setLoading]=useState(false),[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
   const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));
 
+  // Medias do ciclo atual
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const turnosCiclo=turnos.filter(t=>t.data&&t.data>=ca.ini&&t.data<=ca.fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
   const totalDias=[...new Set(turnosCiclo.map(t=>t.data))].length;
@@ -501,36 +488,17 @@ function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete,controle}){
     if(!error)onDelete(t.id);else alert("Erro: "+error.message);
     setLoading(false);
   };
-  
-  // CHAMADA DE IA VIA EDGE FUNCTION (SEGURA)
   const pedirIA=useCallback(async()=>{
-    if(!ehPro(controle)){
-      setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");
-      return;
-    }
-    
     setLoadingAI(true);
     const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
     const totK=turnosHoje.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);
     const totV=turnosHoje.reduce((s,t)=>s+parseN(t.viagens),0);
-    
     try{
-      const{data,error}=await sb.functions.invoke('analise-ia',{
-        body:{
-          contexto:`Dia: ${turnosHoje.length} turno(s), R$${totB.toFixed(2)} bruto, ${totK}km, ${totV} viagens. Metas: R$${cfg.meta_km}/km, R$${cfg.meta_hora}/h.`
-        }
-      });
-      
-      if(error){
-        setAiMsg("Erro ao conectar com IA. Tente novamente.");
-      }else{
-        setAiMsg(data.resposta||"Sem resposta da IA.");
-      }
-    }catch(err){
-      setAiMsg("Nao foi possivel conectar a IA.");
-    }
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:"Consultor financeiro de motoristas. Portugues (3-4 frases). Dia: "+turnosHoje.length+" turno(s), R$"+totB.toFixed(2)+" bruto, "+totK+"km, "+totV+" viagens. Metas: R$"+cfg.meta_km+"/km, R$"+cfg.meta_hora+"/h. Avalie e de 1 dica."}]})});
+      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
+    }catch{setAiMsg("Nao foi possivel conectar a IA.");}
     setLoadingAI(false);
-  },[turnosHoje,cfg,controle]);
+  },[turnosHoje,cfg]);
 
   const CardTurno=({t})=>{
     const aberto=t.km_i&&(!t.km_f||!t.bruto);
@@ -721,14 +689,19 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
     if(!error)onDelete(a.id);else alert("Erro: "+error.message);
   };
 
+  // Periodo do dashboard
   const abastPeriodo=abastecimentos.filter(a=>a.data&&a.data>=periodoIni&&a.data<=periodoFim);
+
+  // Ultimos 4 para medias
   const ultimos4=abastecimentos.slice(0,4);
   const media=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/ultimos4.length:0;
   const mediaPreco=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.preco),0)/ultimos4.length:0;
 
+  // Volume e gasto do periodo selecionado no dashboard
   const totalGasto=abastPeriodo.reduce((s,a)=>s+parseN(a.litros)*parseN(a.preco),0);
   const totalLitros=abastPeriodo.reduce((s,a)=>s+parseN(a.litros),0);
 
+  // Grafico: ultimos 6 abastecimentos
   const abastGrafico=abastecimentos.slice(0,6);
   const salvar=async()=>{
     if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
@@ -796,21 +769,8 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
   );
 }
 
-// -- COMPARATIVO (BLOQUEADO NO GRÁTIS) -------------------------
-function TelaComparativo({turnos,controle}){
-  // VERIFICAÇÃO FREEMIUM
-  if(!ehPro(controle)){
-    return(
-      <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-        <UpgradeCard 
-          icone="📊"
-          titulo="Comparativo de Semanas"
-          descricao="Motoristas Pro descobrem que ganham 18% mais ao comparar suas semanas e identificar seus melhores dias. Desbloqueie análises ilimitadas."
-        />
-      </div>
-    );
-  }
-
+// -- COMPARATIVO -----------------------------------------------
+function TelaComparativo({turnos}){
   const semanas=useMemo(()=>{
     if(!turnos.length)return[];
     const porDia={};
@@ -936,15 +896,12 @@ function TelaComparativo({turnos,controle}){
   );
 }
 
-// -- HISTÓRICO (LIMITADO NO GRÁTIS) ----------------------------
-function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos,controle}){
+// -- HISTORICO -------------------------------------------------
+function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
   const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);
   const[sel,setSel]=useState(null);
   const ca=calcCiclo(cfg.dia_ciclo||1);
-  
-  // LIMITAÇÃO FREEMIUM: Grátis vê apenas 2 ciclos
-  const ciclosVisiveis=ehPro(controle)?ciclos:ciclos.slice(0,2);
-  
+  // Busca custos do ciclo correto
   const getCustosCiclo=(ini)=>{
     const cc=custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===ini);
     return cc||cfg;
@@ -957,13 +914,7 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos,controle}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <SecTitle t="Historico de ciclos"/>
-      {!ehPro(controle)&&ciclos.length>2&&(
-        <div style={{background:"#FFF3CD",border:"1px solid #FFC107",borderRadius:2,padding:12,marginBottom:14,textAlign:"center"}}>
-          <p style={{fontSize:12,color:"#856404",marginBottom:8}}>📊 Você está vendo apenas os 2 ciclos mais recentes</p>
-          <p style={{fontSize:11,color:"#856404"}}>Faça upgrade para ver todo seu histórico e identificar tendências de longo prazo</p>
-        </div>
-      )}
-      {ciclosVisiveis.map((c,i)=>{
+      {ciclos.map((c,i)=>{
         const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim,getCustosCiclo(c.ini));
         const ab=sel===i,isAt=c.ini===ca.ini;
         return(
@@ -1006,10 +957,11 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos,controle}){
 }
 
 // -- DASHBOARD -------------------------------------------------
-function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim,custosCiclos,controle}){
+function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPeriodoIni,setPeriodoFim,custosCiclos}){
   const ca=calcCiclo(cfg.dia_ciclo||1);
   const[dataIni,setDataIni]=[periodoIni,setPeriodoIni];
   const[dataFim,setDataFim]=[periodoFim,setPeriodoFim];
+  // Busca custos do ciclo selecionado
   const custosDoPeriodo=(custosCiclos&&custosCiclos.find(c=>c.ciclo_ini===dataIni))||cfg;
   const[mostrarFiltro,setMostrarFiltro]=useState(false);
   const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
@@ -1035,9 +987,6 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
   const APPS=[{id:"total",label:"Uber / 99"},{id:"part",label:"Particular"}];
 
-  // NO GRÁTIS: não mostra filtro por app
-  const APPS_VISIVEIS=ehPro(controle)?[{id:"total",label:"Total"},{id:"uber",label:"Uber"},{id:"99",label:"99"},{id:"part",label:"Particular"}]:[{id:"total",label:"Total"}];
-
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
     const semanas=[];
@@ -1052,31 +1001,14 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
     return semanas;
   })();
 
-  // CHAMADA DE IA VIA EDGE FUNCTION (SEGURA)
   const pedirIA=useCallback(async()=>{
-    if(!ehPro(controle)){
-      setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");
-      return;
-    }
-    
     setLoadingAI(true);
     try{
-      const{data,error}=await sb.functions.invoke('analise-ia',{
-        body:{
-          contexto:`Ciclo: bruto R$${mes.bruto.toFixed(2)}, custos R$${mes.custos.toFixed(2)}, lucro R$${mes.lucro.toFixed(2)}, ${mes.dias} dias, ${mes.viagens} viagens, ${mes.km_total}km. R$/km:${mes.r_km.toFixed(2)}(meta:${cfg.meta_km}), R$/hora:${mes.r_hr.toFixed(2)}(meta:${cfg.meta_hora}).`
-        }
-      });
-      
-      if(error){
-        setAiMsg("Erro ao conectar com IA. Tente novamente.");
-      }else{
-        setAiMsg(data.resposta||"Sem resposta da IA.");
-      }
-    }catch(err){
-      setAiMsg("Nao foi possivel conectar a IA.");
-    }
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:"Consultor financeiro de motoristas. Portugues (4-5 frases). Ciclo: bruto R$"+mes.bruto.toFixed(2)+", custos R$"+mes.custos.toFixed(2)+", lucro R$"+mes.lucro.toFixed(2)+", "+mes.dias+" dias, "+mes.viagens+" viagens, "+mes.km_total+"km. R$/km:"+mes.r_km.toFixed(2)+"(meta:"+cfg.meta_km+"), R$/hora:"+mes.r_hr.toFixed(2)+"(meta:"+cfg.meta_hora+"). De 2 sugestoes praticas."}]})});
+      const d=await res.json();setAiMsg(d.content?.[0]?.text||"Sem resposta.");
+    }catch{setAiMsg("Nao foi possivel conectar a IA.");}
     setLoadingAI(false);
-  },[mes,cfg,controle]);
+  },[mes,cfg]);
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
@@ -1116,16 +1048,10 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
       <Card style={{marginBottom:10}}>
         <SecTitle t="Eficiencia (IE)"/>
         <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {APPS_VISIVEIS.map(({id,label})=>(
-            <button key={id} onClick={()=>{
-              if(!ehPro(controle)&&id!=="total"){
-                alert("🔒 Análise por aplicativo exclusiva para assinantes Pro");
-                return;
-              }
-              setAppFiltro(id);
-            }}
+          {APPS.map(({id,label})=>(
+            <button key={id} onClick={()=>setAppFiltro(id)}
               style={{flex:1,padding:"7px 4px",borderRadius:2,border:"1px solid "+(appFiltro===id?K.text:K.border),background:appFiltro===id?K.text:K.card,color:appFiltro===id?K.bg:K.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-              {label} {!ehPro(controle)&&id!=="total"&&"🔒"}
+              {label}
             </button>
           ))}
         </div>
@@ -1133,7 +1059,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t={"Lucro por semana -- "+APPS_VISIVEIS.find(a=>a.id===appFiltro)?.label}/>
+        <SecTitle t={"Lucro por semana -- "+APPS.find(a=>a.id===appFiltro)?.label}/>
         <BarChart data={semanasDociclo}/>
       </Card>
       <Card style={{marginBottom:10}}>
@@ -1391,6 +1317,7 @@ function App(){
   const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);
   const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);
   const[custosCiclos,setCustosCiclos]=useState([]);
+  // Periodo compartilhado - inicializa com dia_ciclo=1, atualiza apos carregar cfg
   const[periodoIni,setPeriodoIni]=useState(calcCiclo(1).ini);
   const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
@@ -1402,6 +1329,7 @@ function App(){
       const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();
       if(c){
         setCfg(c);
+        // Atualiza periodo com o dia_ciclo real do usuario
         const ca=calcCiclo(c.dia_ciclo||1);
         setPeriodoIni(ca.ini);
         setPeriodoFim(ca.fim);
@@ -1411,6 +1339,7 @@ function App(){
       const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});
       if(t){
         setTurnos(t);
+        // Se tiver turno aberto hoje, navega para o diario
         const turnoAberto=t.find(x=>x.data===hoje()&&x.km_i&&(!x.km_f||!x.bruto));
         if(turnoAberto)setNav("diario");
       }
@@ -1420,4 +1349,88 @@ function App(){
     setLoading(false);
   };
 
-  useEffect
+  useEffect(()=>{
+    const timer=setTimeout(()=>setLoading(false),6000);
+    sb.auth.getSession().then(({data:{session}})=>{
+      clearTimeout(timer);setSession(session);
+      if(session)carregarDados(session.user.id);else setLoading(false);
+    }).catch(()=>{clearTimeout(timer);setLoading(false);});
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
+
+  const navItems=[
+    {id:"dashboard",icon:"🏠",label:"Dashboard"},
+    {id:"diario",icon:"📋",label:"Diario"},
+    {id:"combustivel",icon:"⛽",label:"Combust."},
+    {id:"comparativo",icon:"📊",label:"Comparar"},
+    {id:"historico",icon:"📁",label:"Historico"},
+    {id:"config",icon:"⚙",label:"Config."},
+  ];
+
+  if(loading)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}>
+      <div style={{fontSize:32,fontFamily:"Arial"}}>&#128663;</div>
+      <p style={{color:K.muted,fontSize:14}}>Carregando...</p>
+    </div>
+  );
+
+  if(!session)return(
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+      <TelaAuth onLogado={()=>sb.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
+    </div>
+  );
+
+  if(telaAdmin&&isAdmin)return(
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#111",fontFamily:"Georgia,serif"}}>
+      <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #222",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>Por km Admin</h1>
+        <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
+      </div>
+      <TelaAdmin onSair={()=>setTelaAdmin(false)}/>
+    </div>
+  );
+
+  if(controle&&!controle.ativo&&!isAdmin)return(
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+      <TelaAguardando onSair={sair}/>
+    </div>
+  );
+
+  return(
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+      <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km <span style={{fontSize:10,color:K.muted,fontWeight:400}}>v1.4</span></h1>
+        <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
+          <button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button>
+        </div>
+      </div>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim} custosCiclos={custosCiclos}/>}
+        {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
+        {nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))} periodoIni={periodoIni} periodoFim={periodoFim}/>}
+        {nav==="comparativo"&&<TelaComparativo turnos={turnos} cfg={cfg}/>}
+        {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} custosCiclos={custosCiclos}/>}
+        {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)} onSalvoCustos={cc=>setCustosCiclos(cc)}/>}
+      </div>
+      <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
+        {navItems.map(n=>(
+          <button key={n.id} onClick={()=>setNav(n.id)}
+            style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            <span style={{fontSize:18,color:nav===n.id?K.text:K.muted}}>{n.icon}</span>
+            <span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
