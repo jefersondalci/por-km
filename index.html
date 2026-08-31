@@ -18,85 +18,1200 @@ input,button,select{font-family:Arial,sans-serif}
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-const{useState,useEffect,useCallback,useMemo}=React;
-const sb=window.supabase.createClient("https://msxlodutcllvvydqtdob.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk");
-const ADMIN_EMAIL="jefersondalci@gmail.com";
+const { useState, useEffect, useCallback, useMemo } = React;
+const sb = window.supabase.createClient(
+  "https://msxlodutcllvvydqtdob.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk"
+);
+const ADMIN_EMAIL = "jefersondalci@gmail.com";
 
-function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
-function fmtR(n){return(n==null||isNaN(n))?"--":"R$ "+fmt(n);}
-function parseN(v){const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n;}
-function fmtHora(h){if(!h||h<=0)return"0h00m";const hh=Math.floor(h);const mm=Math.round((h-hh)*60);return hh+"h"+(mm<10?"0":"")+mm+"m";}
-function horasDiff(h1,h2){if(!h1||!h2)return 0;const[a,b]=[h1,h2].map(h=>{const[hh,mm]=h.split(":").map(Number);return hh*60+mm;});return Math.max(0,(b-a)/60);}
-function hoje(){return new Date().toISOString().slice(0,10);}
-function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/"+y;}
-function ehPro(c){if(!c)return false;return c.vitalicio||c.plano==="pago";}
+function fmt(n, dec = 2) {
+  if (n == null || isNaN(n)) return "--";
+  return Number(n).toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function fmtR(n) { return (n == null || isNaN(n)) ? "--" : "R$ " + fmt(n); }
+function parseN(v) { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+function fmtHora(h) {
+  if (!h || h <= 0) return "0h00m";
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return hh + "h" + (mm < 10 ? "0" : "") + mm + "m";
+}
+function horasDiff(h1, h2) {
+  if (!h1 || !h2) return 0;
+  const [a, b] = [h1, h2].map(h => { const [hh, mm] = h.split(":").map(Number); return hh * 60 + mm; });
+  return Math.max(0, (b - a) / 60);
+}
+function hoje() { return new Date().toISOString().slice(0, 10); }
+function dataFmt(d) { if (!d) return ""; const [y, m, dd] = d.split("-"); return dd + "/" + m + "/" + y; }
+function ehPro(c) { if (!c) return false; return c.vitalicio || c.plano === "pago"; }
 
-const CFG0={meta_km:2.30,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89,dia_ciclo:1,usar_media_comb:false};
+const CFG0 = {
+  meta_km: 2.30, meta_hora: 39.00, parcela: 0, ipva: 0, seguro: 0,
+  pneu_total: 1000, pneu_km: 60000, revisao_km: 0.30, emergencia_km: 0.12,
+  autonomia: 7.0, preco_litro: 4.89, dia_ciclo: 1, usar_media_comb: false
+};
 
-function calcCiclo(dia){const d=parseInt(dia)||1,ag=new Date(),dc=ag.getDate();let ini,fim;if(dc>=d){ini=new Date(ag.getFullYear(),ag.getMonth(),d);fim=new Date(ag.getFullYear(),ag.getMonth()+1,d-1);}else{ini=new Date(ag.getFullYear(),ag.getMonth()-1,d);fim=new Date(ag.getFullYear(),ag.getMonth(),d-1);}return{ini:ini.toISOString().slice(0,10),fim:fim.toISOString().slice(0,10)};}
+function calcCiclo(dia) {
+  const d = parseInt(dia) || 1, ag = new Date(), dc = ag.getDate();
+  let ini, fim;
+  if (dc >= d) {
+    ini = new Date(ag.getFullYear(), ag.getMonth(), d);
+    fim = new Date(ag.getFullYear(), ag.getMonth() + 1, d - 1);
+  } else {
+    ini = new Date(ag.getFullYear(), ag.getMonth() - 1, d);
+    fim = new Date(ag.getFullYear(), ag.getMonth(), d - 1);
+  }
+  return { ini: ini.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) };
+}
 
-function gerarCiclos(dia,turnos){if(!turnos.length)return[];const d=parseInt(dia)||1;const datas=turnos.map(t=>t.data).sort();const primeira=new Date(datas[0]+"T12:00:00");const ciclos=[];let ini=new Date(primeira.getFullYear(),primeira.getMonth(),d);if(ini>primeira)ini=new Date(primeira.getFullYear(),primeira.getMonth()-1,d);for(let i=0;i<24;i++){const fim=new Date(ini.getFullYear(),ini.getMonth()+1,d-1);const iniStr=ini.toISOString().slice(0,10);const fimStr=fim.toISOString().slice(0,10);if(iniStr>hoje())break;ciclos.push({ini:iniStr,fim:fimStr,label:dataFmt(iniStr)+" -> "+dataFmt(fimStr)});ini=new Date(ini.getFullYear(),ini.getMonth()+1,d);}return ciclos.reverse();}
+function gerarCiclos(dia, turnos) {
+  if (!turnos.length) return [];
+  const d = parseInt(dia) || 1;
+  const datas = turnos.map(t => t.data).sort();
+  const primeira = new Date(datas[0] + "T12:00:00");
+  const ciclos = [];
+  let ini = new Date(primeira.getFullYear(), primeira.getMonth(), d);
+  if (ini > primeira) ini = new Date(primeira.getFullYear(), primeira.getMonth() - 1, d);
+  for (let i = 0; i < 24; i++) {
+    const fim = new Date(ini.getFullYear(), ini.getMonth() + 1, d - 1);
+    const iniStr = ini.toISOString().slice(0, 10);
+    const fimStr = fim.toISOString().slice(0, 10);
+    if (iniStr > hoje()) break;
+    ciclos.push({ ini: iniStr, fim: fimStr, label: dataFmt(iniStr) + " -> " + dataFmt(fimStr) });
+    ini = new Date(ini.getFullYear(), ini.getMonth() + 1, d);
+  }
+  return ciclos.reverse();
+}
 
-function calcPeriodo(turnos,abast,cfg,ini,fim,cc){cc=cc||cfg;const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);const dias=[...new Set(mes.map(t=>t.data))].length;const km_total=mes.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);const hrs_total=mes.reduce((s,t)=>s+horasDiff(t.h_i,t.h_f),0);const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);let kmL=parseN(cc.autonomia)||7,precoComb=parseN(cc.preco_litro)||5;if(cfg.usar_media_comb&&abastP.length>0){kmL=abastP.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/abastP.length;precoComb=parseN([...abastP].sort((a,b)=>b.data.localeCompare(a.data))[0].preco);}const comb_total=kmL>0?(km_total/kmL)*precoComb:0;const pneu_t=km_total*(parseN(cc.pneu_total)/Math.max(1,parseN(cc.pneu_km)));const rev_t=km_total*parseN(cc.revisao_km);const emer_t=km_total*parseN(cc.emergencia_km);const fixo=parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12;const custos_var=comb_total+pneu_t+rev_t+emer_t;const custos=custos_var+fixo;return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,custos_var,custos,lucro:bruto-custos,r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0};}
+function calcPeriodo(turnos, abast, cfg, ini, fim, cc) {
+  cc = cc || cfg;
+  const mes = turnos.filter(t => t.data && t.data >= ini && t.data <= fim && parseN(t.km_f) > 0 && parseN(t.bruto) > 0);
+  const dias = [...new Set(mes.map(t => t.data))].length;
+  const km_total = mes.reduce((s, t) => s + (parseN(t.km_f) - parseN(t.km_i)), 0);
+  const hrs_total = mes.reduce((s, t) => s + horasDiff(t.h_i, t.h_f), 0);
+  const bruto = mes.reduce((s, t) => s + parseN(t.bruto) + parseN(t.bonus), 0);
+  const viagens = mes.reduce((s, t) => s + parseN(t.viagens), 0);
+  const abastP = abast.filter(a => a.data && a.data >= ini && a.data <= fim);
+  let kmL = parseN(cc.autonomia) || 7, precoComb = parseN(cc.preco_litro) || 5;
+  if (cfg.usar_media_comb && abastP.length > 0) {
+    kmL = abastP.reduce((s, a) => s + parseN(a.km_rod) / Math.max(0.01, parseN(a.litros)), 0) / abastP.length;
+    precoComb = parseN([...abastP].sort((a, b) => b.data.localeCompare(a.data))[0].preco);
+  }
+  const comb_total = kmL > 0 ? (km_total / kmL) * precoComb : 0;
+  const pneu_t = km_total * (parseN(cc.pneu_total) / Math.max(1, parseN(cc.pneu_km)));
+  const rev_t = km_total * parseN(cc.revisao_km);
+  const emer_t = km_total * parseN(cc.emergencia_km);
+  const fixo = parseN(cc.parcela) + parseN(cc.ipva) / 12 + parseN(cc.seguro) / 12;
+  const custos_var = comb_total + pneu_t + rev_t + emer_t;
+  const custos = custos_var + fixo;
+  return {
+    dias, km_total, hrs_total, bruto, viagens, comb_total, pneu_t, rev_t, emer_t,
+    fixo, custos_var, custos, lucro: bruto - custos,
+    r_km: km_total > 0 ? bruto / km_total : 0,
+    r_hr: hrs_total > 0 ? bruto / hrs_total : 0
+  };
+}
 
-const K={bg:"#F5F2EB",card:"#FEFDFB",border:"#D8D4C8",text:"#1A1A1A",muted:"#888880",sep:"#EAE7E0",bar:"#3A3A38",ok:"#2E7D32",err:"#C62828"};
-const Card=({children,style})=><div style={{background:K.card,borderRadius:2,border:"1px solid "+K.border,padding:14,...style}}>{children}</div>;
-const Lbl=({c})=><div style={{fontSize:11,color:K.muted,marginBottom:4,marginTop:10}}>{c}</div>;
-const inputStyle={width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"10px 12px",fontSize:16,background:K.card,outline:"none",boxSizing:"border-box",color:K.text};
-const Inp=({label,type="text",value,onChange,placeholder})=><div><Lbl c={label}/><input type={type==="number"?"text":type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={inputStyle}/></div>;
-const InpHora=({label,value,onChange})=><div><Lbl c={label}/><input type="text" value={value??""} onChange={e=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+":"+v.slice(2);onChange(v);}} placeholder="08:00" maxLength={5} style={inputStyle}/></div>;
-const InpMoeda=({label,value,onChange})=><div><Lbl c={label}/><input type="text" value={value!=null?Number(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""} onChange={e=>{const d=e.target.value.replace(/\D/g,"").slice(0,10);onChange(parseInt(d||"0",10)/100);}} placeholder="0,00" style={inputStyle}/></div>;
-const Btn=({children,onClick,sec,disabled})=><button onClick={onClick} disabled={disabled} style={{padding:"11px 16px",borderRadius:2,border:"1px solid "+(sec?K.border:K.text),background:sec?K.bg:K.text,color:sec?K.text:K.bg,fontSize:14,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,width:"100%"}}>{children}</button>;
+const K = {
+  bg: "#F5F2EB", card: "#FEFDFB", border: "#D8D4C8", text: "#1A1A1A",
+  muted: "#888880", sep: "#EAE7E0", bar: "#3A3A38",
+  ok: "#2E7D32", err: "#C62828"
+};
 
-function UpgradeCard({titulo,descricao}){return(<Card style={{textAlign:"center",padding:30,border:"2px dashed "+K.text,margin:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>🔒</div><p style={{fontSize:16,fontWeight:700,color:K.text,marginBottom:8}}>{titulo}</p><p style={{fontSize:13,color:K.muted,lineHeight:1.7,marginBottom:20}}>{descricao}</p><Btn onClick={()=>alert("Para ativar o plano Pro, entre em contato: jefersondalci@gmail.com")}>Fazer Upgrade por R$ 14,90/mês</Btn></Card>);}
+const Card = ({ children, style }) => (
+  <div style={{ background: K.card, borderRadius: 2, border: "1px solid " + K.border, padding: 14, ...style }}>{children}</div>
+);
+const Lbl = ({ c }) => <div style={{ fontSize: 11, color: K.muted, marginBottom: 4, marginTop: 10 }}>{c}</div>;
+const inputStyle = {
+  width: "100%", border: "1px solid " + K.border, borderRadius: 2,
+  padding: "10px 12px", fontSize: 16, background: K.card, outline: "none",
+  boxSizing: "border-box", color: K.text
+};
+const Inp = ({ label, type = "text", value, onChange, placeholder }) => (
+  <div>
+    <Lbl c={label} />
+    <input type={type === "number" ? "text" : type} value={value ?? ""}
+      onChange={e => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+  </div>
+);
+const InpHora = ({ label, value, onChange }) => (
+  <div>
+    <Lbl c={label} />
+    <input type="text" value={value ?? ""}
+      onChange={e => { let v = e.target.value.replace(/\D/g, "").slice(0, 4); if (v.length >= 3) v = v.slice(0, 2) + ":" + v.slice(2); onChange(v); }}
+      placeholder="08:00" maxLength={5} style={inputStyle} />
+  </div>
+);
+const InpMoeda = ({ label, value, onChange }) => (
+  <div>
+    <Lbl c={label} />
+    <input type="text" value={value != null ? Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
+      onChange={e => { const d = e.target.value.replace(/\D/g, "").slice(0, 10); onChange(parseInt(d || "0", 10) / 100); }}
+      placeholder="0,00" style={inputStyle} />
+  </div>
+);
+const Btn = ({ children, onClick, sec, disabled }) => (
+  <button onClick={onClick} disabled={disabled}
+    style={{
+      padding: "11px 16px", borderRadius: 2, border: "1px solid " + (sec ? K.border : K.text),
+      background: sec ? K.bg : K.text, color: sec ? K.text : K.bg,
+      fontSize: 14, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.5 : 1, width: "100%"
+    }}>{children}</button>
+);
 
-function TelaAuth({onLogado}){const[modo,setModo]=useState("login");const[nome,setNome]=useState(""),[email,setEmail]=useState(""),[senha,setSenha]=useState(""),[tel,setTel]=useState("");const[loading,setLoading]=useState(false),[msg,setMsg]=useState("");const toast=(m)=>{setMsg(m);setTimeout(()=>setMsg(""),4000);};const entrar=async()=>{if(!email||!senha)return toast("Preencha e-mail e senha.");setLoading(true);const{error}=await sb.auth.signInWithPassword({email,password:senha});if(error)toast("E-mail ou senha incorretos.");else{toast("Bem-vindo!");onLogado();}setLoading(false);};const recuperar=async()=>{if(!email)return toast("Digite seu e-mail primeiro.");setLoading(true);const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});if(error)toast("Erro: "+error.message);else toast("E-mail de recuperacao enviado!");setLoading(false);};const cadastrar=async()=>{if(!nome||!email||!senha)return toast("Preencha todos os campos.");if(senha.length<6)return toast("Senha precisa ter 6 caracteres.");setLoading(true);const{data,error}=await sb.auth.signUp({email,password:senha,options:{data:{nome}}});if(error){toast(error.message);setLoading(false);return;}if(data.user){await sb.from("configuracoes").insert({user_id:data.user.id,...CFG0});if(tel)await sb.from("usuarios_controle").update({telefone:tel,nome}).eq("user_id",data.user.id);}toast("Conta criada! Verifique seu e-mail.");setModo("login");setLoading(false);};return(<div style={{display:"flex",flexDirection:"column",justifyContent:"center",flex:1,padding:"32px 24px",overflowY:"auto"}}>{msg&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999}}>{msg}</div>}<div style={{textAlign:"center",marginBottom:32}}><div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div><h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1><p style={{color:K.muted,fontSize:11,margin:"2px 0 0"}}>v1.5</p><p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p></div>{modo==="cadastro"&&<><Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/><Inp label="WhatsApp (com DDD)" type="number" value={tel} onChange={setTel} placeholder="21999999999"/></>}<Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com"/><Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Minimo 6 caracteres"/><div style={{marginTop:20}}>{modo==="login"?<Btn onClick={entrar} disabled={loading}>{loading?"Entrando...":"Entrar"}</Btn>:<Btn onClick={cadastrar} disabled={loading}>{loading?"Criando...":"Criar minha conta"}</Btn>}</div><button onClick={()=>setModo(modo==="login"?"cadastro":"login")}style={{marginTop:10,background:"none",border:"1px solid "+K.border,borderRadius:2,padding:11,fontSize:13,color:K.text,cursor:"pointer",width:"100%"}}>{modo==="login"?"Criar conta gratis":"Ja tenho conta -- Entrar"}</button>{modo==="login"&&<button onClick={recuperar} disabled={loading}style={{marginTop:8,background:"none",border:"none",fontSize:12,color:K.muted,cursor:"pointer",width:"100%",padding:"6px 0"}}>Esqueci minha senha</button>}</div>);}
+function UpgradeCard({ titulo, descricao }) {
+  return (
+    <Card style={{ textAlign: "center", padding: 30, border: "2px dashed " + K.text, margin: "20px 0" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <p style={{ fontSize: 16, fontWeight: 700, color: K.text, marginBottom: 8 }}>{titulo}</p>
+      <p style={{ fontSize: 13, color: K.muted, lineHeight: 1.7, marginBottom: 20 }}>{descricao}</p>
+      <Btn onClick={() => alert("Para ativar o plano Pro, entre em contato: jefersondalci@gmail.com")}>
+        Fazer Upgrade por R$ 14,90/mês
+      </Btn>
+    </Card>
+  );
+}
 
-function TelaAguardando({onSair}){return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}><div style={{fontSize:48,marginBottom:20}}>...</div><h2 style={{fontSize:20,fontWeight:700,color:K.text,marginBottom:12}}>Conta em analise</h2><p style={{fontSize:14,color:K.muted,lineHeight:1.7,marginBottom:24}}>Aguarde a ativacao pelo administrador.</p><button onClick={onSair} style={{background:"none",border:"1px solid "+K.border,borderRadius:2,padding:"10px 24px",fontSize:13,color:K.muted,cursor:"pointer"}}>Sair</button></div>);}
+function TelaAuth({ onLogado }) {
+  const [modo, setModo] = useState("login");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [tel, setTel] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const toast = (m) => { setMsg(m); setTimeout(() => setMsg(""), 4000); };
 
-function TelaConfig({cfg,userId,onSalvo}){const[form,setForm]=useState({...CFG0,...cfg});const[loading,setLoading]=useState(false);const f=key=>({value:form[key]??"",onChange:v=>setForm(p=>({...p,[key]:v}))});const salvar=async()=>{setLoading(true);const dados={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb,parcela:parseN(form.parcela),ipva:parseN(form.ipva),seguro:parseN(form.seguro),pneu_total:parseN(form.pneu_total),pneu_km:parseN(form.pneu_km),revisao_km:parseN(form.revisao_km),emergencia_km:parseN(form.emergencia_km),autonomia:parseN(form.autonomia),preco_litro:parseN(form.preco_litro)};const{data:ex}=await sb.from("configuracoes").select("id").eq("user_id",userId).single();if(ex){await sb.from("configuracoes").update(dados).eq("user_id",userId);}else{await sb.from("configuracoes").insert({user_id:userId,...CFG0,...dados});}const{data:novo}=await sb.from("configuracoes").select("*").eq("user_id",userId).single();if(novo)onSalvo(novo);setLoading(false);alert("Configuracoes salvas!");};return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Metas de ganho</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Meta R$/km" type="number" {...f("meta_km")}/><Inp label="Meta R$/hora" type="number" {...f("meta_hora")}/></div><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Ciclo financeiro</p><Lbl c="Dia de inicio do ciclo"/><input type="number" value={form.dia_ciclo??1} onChange={e=>setForm(p=>({...p,dia_ciclo:e.target.value}))} min="1" max="28" style={inputStyle}/><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Custos fixos mensais</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Parcela do carro (R$)" type="number" {...f("parcela")}/><Inp label="IPVA anual (R$)" type="number" {...f("ipva")}/><Inp label="Seguro anual (R$)" type="number" {...f("seguro")}/></div><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Custos variaveis por km</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Total dos pneus (R$)" type="number" {...f("pneu_total")}/><Inp label="Duracao pneu (km)" type="number" {...f("pneu_km")}/><Inp label="Revisao R$/km" type="number" {...f("revisao_km")}/><Inp label="Emergencia R$/km" type="number" {...f("emergencia_km")}/></div><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Combustivel</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Autonomia fixa (km/L)" type="number" {...f("autonomia")}/><Inp label="Preco do litro (R$)" type="number" {...f("preco_litro")}/></div><div style={{marginTop:14,background:K.bg,borderRadius:2,padding:12,border:"1px solid "+K.border}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><p style={{fontSize:13,fontWeight:600,color:K.text}}>Usar media real dos abastecimentos</p><p style={{fontSize:11,color:K.muted,marginTop:3}}>Calcula a autonomia com base nos abastecimentos do ciclo</p></div><div onClick={()=>setForm(p=>({...p,usar_media_comb:!p.usar_media_comb}))}style={{width:44,height:24,borderRadius:12,background:form.usar_media_comb?K.text:K.border,position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}><div style={{position:"absolute",top:2,left:form.usar_media_comb?20:2,width:20,height:20,borderRadius:"50%",background:K.card,transition:"left .2s"}}/></div></div></div><div style={{marginTop:24}}><Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar configuracoes"}</Btn></div></div>);}
+  const entrar = async () => {
+    if (!email || !senha) return toast("Preencha e-mail e senha.");
+    setLoading(true);
+    const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+    if (error) toast("E-mail ou senha incorretos.");
+    else { toast("Bem-vindo!"); onLogado(); }
+    setLoading(false);
+  };
 
-function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});return(<Card style={{marginBottom:14}}><p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>Abrindo {form.num}. turno</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/><Inp label="No. do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/><Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))} placeholder="75937"/><InpHora label="Hora inicio" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}><Btn sec onClick={onCancelar}>Cancelar</Btn><Btn onClick={()=>{if(!form.km_i||!form.h_i)return alert("Preencha KM e hora.");onSalvar(form);}} disabled={loading}>{loading?"Abrindo...":"Abrir turno"}</Btn></div></Card>);}
+  const recuperar = async () => {
+    if (!email) return toast("Digite seu e-mail primeiro.");
+    setLoading(true);
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: "https://jefersondalci.github.io/por-km" });
+    if (error) toast("Erro: " + error.message); else toast("E-mail de recuperacao enviado!");
+    setLoading(false);
+  };
 
-function SecaoApp({titulo,dados,setDados,temBonus=true}){return(<div style={{border:"1px solid "+K.border,borderRadius:2,padding:12,marginTop:10,background:K.card}}><p style={{fontSize:12,fontWeight:700,color:K.text,marginBottom:8}}>{titulo}</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/><Inp label="No. de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/></div>{temBonus&&<InpMoeda label="Bonus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}</div>);}
+  const cadastrar = async () => {
+    if (!nome || !email || !senha) return toast("Preencha todos os campos.");
+    if (senha.length < 6) return toast("Senha precisa ter 6 caracteres.");
+    setLoading(true);
+    const { data, error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome } } });
+    if (error) { toast(error.message); setLoading(false); return; }
+    if (data.user) {
+      await sb.from("configuracoes").insert({ user_id: data.user.id, ...CFG0 });
+      if (tel) await sb.from("usuarios_controle").update({ telefone: tel, nome }).eq("user_id", data.user.id);
+    }
+    toast("Conta criada! Verifique seu e-mail.");
+    setModo("login");
+    setLoading(false);
+  };
 
-function FormFecharTurno({turno,onSalvar,onCancelar,loading}){const[km_f,setKmF]=useState(""),[h_f,setHF]=useState("");const[uber,setUber]=useState({bruto:"",viagens:"",bonus:""});const[nov,setNov]=useState({bruto:"",viagens:"",bonus:""});const[part,setPart]=useState({bruto:"",viagens:""});const totalBruto=parseN(uber.bruto)+parseN(nov.bruto)+parseN(part.bruto);const totalBonus=parseN(uber.bonus)+parseN(nov.bonus);const totalViagens=parseN(uber.viagens)+parseN(nov.viagens)+parseN(part.viagens);const km=parseN(km_f)-parseN(turno.km_i);const hrs=horasDiff(turno.h_i,h_f);return(<Card style={{marginBottom:14}}><p style={{fontSize:13,fontWeight:600,marginBottom:2,color:K.text}}>Encerrando {turno.num}. turno</p><p style={{fontSize:11,color:K.muted,marginBottom:8}}>Iniciado as {turno.h_i} -- KM inicial: {turno.km_i}</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/><InpHora label="Hora fim" value={h_f} onChange={setHF}/></div><SecaoApp titulo="Uber" dados={uber} setDados={setUber}/><SecaoApp titulo="99" dados={nov} setDados={setNov}/><SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>{totalBruto>0&&(<div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>{[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Bruto",fmtR(totalBruto)],["Bonus",fmtR(totalBonus)],["Total c/bonus",fmtR(totalBruto+totalBonus)],["Viagens",totalViagens+"v"]].map(([l,v])=>(<div key={l}><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>))}</div>)}<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}><Btn sec onClick={onCancelar}>Cancelar</Btn><Btn onClick={()=>{if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");if(totalViagens===0)return alert("Informe o numero de viagens.");onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:totalBonus,uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)});} disabled={loading}>{loading?"Fechando...":"Fechar turno"}</Btn></div></Card>);}
+  return (
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, padding: "32px 24px", overflowY: "auto" }}>
+      {msg && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: K.text, color: K.bg, padding: "10px 20px", borderRadius: 2, fontSize: 13, fontWeight: 600, zIndex: 999 }}>{msg}</div>}
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ width: 64, height: 64, background: K.card, border: "1px solid " + K.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 28 }}>Por km</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: K.text, margin: 0 }}>Por km</h1>
+        <p style={{ color: K.muted, fontSize: 11, margin: "2px 0 0" }}>v1.5</p>
+        <p style={{ color: K.muted, fontSize: 13, margin: "6px 0 0" }}>Controle financeiro para motoristas</p>
+      </div>
+      {modo === "cadastro" && <>
+        <Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva" />
+        <Inp label="WhatsApp (com DDD)" type="number" value={tel} onChange={setTel} placeholder="21999999999" />
+      </>}
+      <Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
+      <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Minimo 6 caracteres" />
+      <div style={{ marginTop: 20 }}>
+        {modo === "login" ? <Btn onClick={entrar} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</Btn>
+          : <Btn onClick={cadastrar} disabled={loading}>{loading ? "Criando..." : "Criar minha conta"}</Btn>}
+      </div>
+      <button onClick={() => setModo(modo === "login" ? "cadastro" : "login")}
+        style={{ marginTop: 10, background: "none", border: "1px solid " + K.border, borderRadius: 2, padding: 11, fontSize: 13, color: K.text, cursor: "pointer", width: "100%" }}>
+        {modo === "login" ? "Criar conta gratis" : "Ja tenho conta -- Entrar"}
+      </button>
+      {modo === "login" && <button onClick={recuperar} disabled={loading}
+        style={{ marginTop: 8, background: "none", border: "none", fontSize: 12, color: K.muted, cursor: "pointer", width: "100%", padding: "6px 0" }}>
+        Esqueci minha senha
+      </button>}
+    </div>
+  );
+}
 
-function TelaDiario({turnos,cfg,userId,onAdd,onUpdate,onDelete,controle}){const[modo,setModo]=useState(null),[editando,setEditando]=useState(null);const[loading,setLoading]=useState(false),[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);const turnoAberto=turnosHoje.find(t=>t.km_i&&(!t.km_f||!t.bruto));const ca=calcCiclo(cfg.dia_ciclo||1);const turnosCiclo=turnos.filter(t=>t.data&&t.data>=ca.ini&&t.data<=ca.fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);const totalDias=[...new Set(turnosCiclo.map(t=>t.data))].length;const totalKm=turnosCiclo.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);const totalBruto=turnosCiclo.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);const totalViagens=turnosCiclo.reduce((s,t)=>s+parseN(t.viagens),0);const calcT=(t)=>{const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f),b=parseN(t.bruto),bonus=parseN(t.bonus);const aut=parseN(cfg.autonomia)||7;const c=k>0?(k/aut)*parseN(cfg.preco_litro):0;const lucro=b-c-k*(parseN(cfg.pneu_total)/Math.max(1,parseN(cfg.pneu_km)))-k*parseN(cfg.revisao_km)-k*parseN(cfg.emergencia_km);return{k,h,b,bonus,lucro,r_km:k>0?b/k:0,r_hr:h>0?b/h:0};};const turnosHojeFechados=turnosHoje.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);const resumoDia=turnosHojeFechados.reduce((acc,t)=>{const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f);return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};},{bruto:0,bonus:0,km:0,hrs:0,viagens:0});const totDia=resumoDia.bruto+resumoDia.bonus;const diaRkm=resumoDia.km>0?totDia/resumoDia.km:0;const diaRhr=resumoDia.hrs>0?totDia/resumoDia.hrs:0;const abrirTurno=async(form)=>{setLoading(true);const{data,error}=await sb.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();if(!error){onAdd(data);setModo(null);}else alert("Erro: "+error.message);setLoading(false);};const fecharTurno=async(form)=>{setLoading(true);const upd={km_f:parseN(form.km_f),h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:0,uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};const{data,error}=await sb.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);setLoading(false);};const excluir=async(t)=>{if(!window.confirm("Excluir "+t.num+". turno de "+dataFmt(t.data)+"?"))return;setLoading(true);const{error}=await sb.from("turnos").delete().eq("id",t.id);if(!error)onDelete(t.id);else alert("Erro: "+error.message);setLoading(false);};const pedirIA=()=>{if(!ehPro(controle)){setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");return;}setLoadingAI(true);const totB=turnosHoje.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);const totK=turnosHoje.reduce((s,t)=>s+(parseN(t.km_f)-parseN(t.km_i)),0);const totV=turnosHoje.reduce((s,t)=>s+parseN(t.viagens),0);const rKm=totK>0?(totB/totK).toFixed(2):0;setTimeout(()=>{if(rKm>=cfg.meta_km){setAiMsg(`✅ Bom dia! Você fez R$${rKm}/km (meta: R$${cfg.meta_km}). Continue assim! Dica: mantenha o ritmo nas horas de pico.`);}else{setAiMsg(`⚠️ Você fez R$${rKm}/km (meta: R$${cfg.meta_km}). Dica: tente focar em horários de alta demanda para melhorar.`);}}setLoadingAI(false);},500);};const CardTurno=({t})=>{const aberto=t.km_i&&(!t.km_f||!t.bruto);const{k,h,b,bonus,lucro,r_km,r_hr}=calcT(t);const okKm=r_km>=parseN(cfg.meta_km),okHr=r_hr>=parseN(cfg.meta_hora);return(<Card style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:13,fontWeight:600,color:K.text}}>{t.num}. Turno -- {dataFmt(t.data)}</span><div style={{display:"flex",gap:6,alignItems:"center"}}>{aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>:<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}<button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button></div></div><div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>{!aberto&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmtHora(h)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Viagens / Bruto</span><b style={{color:K.text}}>{t.viagens} / {fmtR(b)}</b></div>{bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bonus</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Lucro est.</span><b style={{color:lucro>0?K.ok:K.err}}>{fmtR(lucro)}</b></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid "+K.sep}}><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}><div style={{fontSize:12,fontWeight:700,color:okKm?K.ok:K.err}}>{fmtR(r_km)}/km</div><div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_km))}/km</div></div><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}><div style={{fontSize:12,fontWeight:700,color:okHr?K.ok:K.err}}>{fmtR(r_hr)}/h</div><div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div></div></div></>}</Card>);};const ResumoDiaCard=({res,rKm,rHr,tot})=>(<Card style={{marginBottom:12}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Resumo do dia</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}><div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtR(tot)}</div><div style={{fontSize:9,color:K.muted}}>Bruto c/ bonus</div></div><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}><div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div><div style={{fontSize:9,color:K.muted}}>Viagens / KM</div></div><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}><div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtHora(res.hrs)}</div><div style={{fontSize:9,color:K.muted}}>Horas trabalhadas</div></div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}><div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?K.ok:K.err}}>{fmtR(rKm)}/km</div><div style={{fontSize:9,color:K.muted}}>dia c/ bonus</div></div><div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}><div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?K.ok:K.err}}>{fmtR(rHr)}/h</div><div style={{fontSize:9,color:K.muted}}>dia c/ bonus</div></div></div></Card>);return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>{turnosCiclo.length>0&&<><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Suas medias gerais</p><span style={{fontSize:10,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>{[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(<Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:15,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div></Card>))}</div></>}<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><p style={{fontSize:13,fontWeight:600,color:K.text}}>Hoje, {dataFmt(hoje())}</p>{!turnoAberto?<button onClick={()=>setModo(modo==="abrir"?null:"abrir")} style={{padding:"9px 16px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>Abrir turno</button>:<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:K.bg,color:K.text,border:"1px solid "+K.text,borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>Fechar turno</button>}</div>{modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-{modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-{turnosHoje.length===0&&!modo&&(<div style={{textAlign:"center",padding:"24px 20px",color:K.muted,background:K.card,borderRadius:2,marginBottom:14,border:"1px solid "+K.border}}><p style={{fontSize:13}}>Nenhum turno hoje ainda.</p><p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para comecar.</p></div>)}
-{turnosHoje.map(t=><CardTurno key={t.id} t={t}/>)}
-{turnosHojeFechados.length>0&&<ResumoDiaCard res={resumoDia} rKm={diaRkm} rHr={diaRhr} tot={totDia}/>}
-{turnosHojeFechados.length>0&&(<div style={{background:K.card,borderRadius:2,padding:14,marginBottom:16,border:"1px solid "+K.border}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do dia -- IA</span><button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button></div>{aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.7}}>{aiMsg}</p>:<p style={{fontSize:12,color:K.muted,fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu dia.</p>}</div>)}
-{turnosAnt.length>0&&<><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Historico</p>{[...new Set(turnosAnt.map(t=>t.data))].map(data=>{const td=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);const fechados=td.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);const res=fechados.reduce((acc,t)=>{const k=parseN(t.km_f)-parseN(t.km_i),h=horasDiff(t.h_i,t.h_f);return{bruto:acc.bruto+parseN(t.bruto),bonus:acc.bonus+parseN(t.bonus),km:acc.km+k,hrs:acc.hrs+h,viagens:acc.viagens+parseN(t.viagens)};},{bruto:0,bonus:0,km:0,hrs:0,viagens:0});const tot=res.bruto+res.bonus;const rKm=res.km>0?tot/res.km:0,rHr=res.hrs>0?tot/res.hrs:0;return(<div key={data}><p style={{fontSize:11,fontWeight:700,color:K.muted,margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:1}}>{dataFmt(data)}</p>{td.map(t=><CardTurno key={t.id} t={t}/>)}{fechados.length>0&&<ResumoDiaCard res={res} rKm={rKm} rHr={rHr} tot={tot}/>}</div>);})}</>}</div>);}
+function TelaAguardando({ onSair }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: 32, textAlign: "center" }}>
+      <div style={{ fontSize: 48, marginBottom: 20 }}>...</div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: K.text, marginBottom: 12 }}>Conta em analise</h2>
+      <p style={{ fontSize: 14, color: K.muted, lineHeight: 1.7, marginBottom: 24 }}>Aguarde a ativacao pelo administrador.</p>
+      <button onClick={onSair} style={{ background: "none", border: "1px solid " + K.border, borderRadius: 2, padding: "10px 24px", fontSize: 13, color: K.muted, cursor: "pointer" }}>Sair</button>
+    </div>
+  );
+}
 
-function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){const isGNV=dados.tipo==="GNV";const quant=parseN(dados.litros);const kmlF=quant>0?parseN(dados.km_rod)/quant:0;const un=isGNV?"m3":"L";return(<Card style={{marginBottom:14}}><p style={{fontSize:13,fontWeight:600,marginBottom:8,color:K.text}}>{titulo}</p><Lbl c="Tipo de combustivel"/><div style={{display:"flex",border:"1px solid "+K.border,borderRadius:2,overflow:"hidden",marginBottom:4}}>{["Gasolina","Alcool","GNV"].map(t=>(<button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?K.text:K.card,color:dados.tipo===t?K.bg:K.muted,fontWeight:dados.tipo===t?700:400}}>{t}</button>))}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Data" type="date" value={dados.data} onChange={v=>setDados(f=>({...f,data:v}))}/><Inp label={"Preco por "+(isGNV?"m3":"litro")+" (R$)"} type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/><Inp label={isGNV?"m3 abastecidos":"Litros abastecidos"} type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40.0"/><Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/></div>{kmlF>0&&(<div style={{marginTop:10,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center",border:"1px solid "+K.border}}>{[["km/"+un,fmt(kmlF)],["R$/km","R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(<div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted}}>{l}</div></div>))}</div>)}<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}><Btn sec onClick={onCancelar}>Cancelar</Btn><Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn></div></Card>);}
+function TelaConfig({ cfg, userId, onSalvo }) {
+  const [form, setForm] = useState({ ...CFG0, ...cfg });
+  const [loading, setLoading] = useState(false);
+  const f = key => ({ value: form[key] ?? "", onChange: v => setForm(p => ({ ...p, [key]: v })) });
 
-function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete}){const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);const excluirAbast=async(a)=>{if(!window.confirm("Excluir abastecimento de "+dataFmt(a.data)+"?"))return;const{error}=await sb.from("abastecimentos").delete().eq("id",a.id);if(!error)onDelete(a.id);else alert("Erro: "+error.message);};const ultimos4=abastecimentos.slice(0,4);const media=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.km_rod)/Math.max(0.01,parseN(a.litros)),0)/ultimos4.length:0;const mediaPreco=ultimos4.length>0?ultimos4.reduce((s,a)=>s+parseN(a.preco),0)/ultimos4.length:0;const salvar=async()=>{if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");setLoading(true);const{data,error}=await sb.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();if(!error){onAdd(data);setMostrar(false);setForm({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});}else alert("Erro: "+error.message);setLoading(false);};const salvarEd=async()=>{setLoading(true);const{data,error}=await sb.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);setLoading(false);};return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><p style={{fontSize:12,color:K.muted}}>Controle de consumo</p><button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>{[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)]].map(([l,v])=>(<Card key={l} style={{padding:10,textAlign:"center"}}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div></Card>))}</div>{mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
-{editando&&<FormAbast titulo={"Editar -- "+dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
-<p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Historico</p>
-{abastecimentos.length===0&&<p style={{color:K.muted,textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
-{abastecimentos.map(a=>{const kmlA=parseN(a.litros)>0?parseN(a.km_rod)/parseN(a.litros):0;const un=a.tipo==="GNV"?"m3":"L";return(<Card key={a.id} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span><span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span></div><button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button><button onClick={()=>excluirAbast(a)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>{[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(<div key={l} style={{textAlign:"center",borderRight:i<3?"1px solid "+K.sep:"none"}}><div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?K.ok:K.err):K.text}}>{v}</div><div style={{fontSize:10,color:K.muted}}>{l}</div></div>))}</div></Card>);})}</div>);}
+  const salvar = async () => {
+    setLoading(true);
+    const dados = {
+      meta_km: parseN(form.meta_km), meta_hora: parseN(form.meta_hora),
+      dia_ciclo: parseN(form.dia_ciclo) || 1, usar_media_comb: !!form.usar_media_comb,
+      parcela: parseN(form.parcela), ipva: parseN(form.ipva), seguro: parseN(form.seguro),
+      pneu_total: parseN(form.pneu_total), pneu_km: parseN(form.pneu_km),
+      revisao_km: parseN(form.revisao_km), emergencia_km: parseN(form.emergencia_km),
+      autonomia: parseN(form.autonomia), preco_litro: parseN(form.preco_litro)
+    };
+    const { data: ex } = await sb.from("configuracoes").select("id").eq("user_id", userId).single();
+    if (ex) { await sb.from("configuracoes").update(dados).eq("user_id", userId); }
+    else { await sb.from("configuracoes").insert({ user_id: userId, ...CFG0, ...dados }); }
+    const { data: novo } = await sb.from("configuracoes").select("*").eq("user_id", userId).single();
+    if (novo) onSalvo(novo);
+    setLoading(false);
+    alert("Configuracoes salvas!");
+  };
 
-function TelaComparativo({turnos,controle}){if(!ehPro(controle)){return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}><UpgradeCard icone="" titulo="Comparativo de Semanas" descricao="Motoristas Pro descobrem que ganham 18% mais ao comparar suas semanas e identificar seus melhores dias. Desbloqueie análises ilimitadas."/></div>);}return(<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted}}><p>Em desenvolvimento</p></div>);}
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Metas de ganho</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Meta R$/km" type="number" {...f("meta_km")} />
+        <Inp label="Meta R$/hora" type="number" {...f("meta_hora")} />
+      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Ciclo financeiro</p>
+      <Lbl c="Dia de inicio do ciclo" />
+      <input type="number" value={form.dia_ciclo ?? 1} onChange={e => setForm(p => ({ ...p, dia_ciclo: e.target.value }))} min="1" max="28" style={inputStyle} />
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Custos fixos mensais</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Parcela do carro (R$)" type="number" {...f("parcela")} />
+        <Inp label="IPVA anual (R$)" type="number" {...f("ipva")} />
+        <Inp label="Seguro anual (R$)" type="number" {...f("seguro")} />
+      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Custos variaveis por km</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Total dos pneus (R$)" type="number" {...f("pneu_total")} />
+        <Inp label="Duracao pneu (km)" type="number" {...f("pneu_km")} />
+        <Inp label="Revisao R$/km" type="number" {...f("revisao_km")} />
+        <Inp label="Emergencia R$/km" type="number" {...f("emergencia_km")} />
+      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Combustivel</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Autonomia fixa (km/L)" type="number" {...f("autonomia")} />
+        <Inp label="Preco do litro (R$)" type="number" {...f("preco_litro")} />
+      </div>
+      <div style={{ marginTop: 14, background: K.bg, borderRadius: 2, padding: 12, border: "1px solid " + K.border }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: K.text }}>Usar media real dos abastecimentos</p>
+            <p style={{ fontSize: 11, color: K.muted, marginTop: 3 }}>Calcula a autonomia com base nos abastecimentos do ciclo</p>
+          </div>
+          <div onClick={() => setForm(p => ({ ...p, usar_media_comb: !p.usar_media_comb }))}
+            style={{ width: 44, height: 24, borderRadius: 12, background: form.usar_media_comb ? K.text : K.border, position: "relative", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}>
+            <div style={{ position: "absolute", top: 2, left: form.usar_media_comb ? 20 : 2, width: 20, height: 20, borderRadius: "50%", background: K.card, transition: "left .2s" }} />
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop: 24 }}><Btn onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar configuracoes"}</Btn></div>
+    </div>
+  );
+}
 
-function TelaHistorico({turnos,abastecimentos,cfg,controle}){const ciclos=useMemo(()=>gerarCiclos(cfg.dia_ciclo||1,turnos),[turnos,cfg]);const[sel,setSel]=useState(null);const ca=calcCiclo(cfg.dia_ciclo||1);const ciclosVisiveis=ehPro(controle)?ciclos:ciclos.slice(0,2);if(ciclos.length===0)return(<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",color:K.muted,flexDirection:"column",gap:12}}><p style={{fontSize:14}}>Nenhum ciclo encontrado ainda.</p></div>);return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Historico de ciclos</p>{!ehPro(controle)&&ciclos.length>2&&(<div style={{background:"#FFF3CD",border:"1px solid #FFC107",borderRadius:2,padding:12,marginBottom:14,textAlign:"center"}}><p style={{fontSize:12,color:"#856404",marginBottom:8}}>📊 Você está vendo apenas os 2 ciclos mais recentes</p><p style={{fontSize:11,color:"#856404"}}>Faça upgrade para ver todo seu histórico</p></div>)}{ciclosVisiveis.map((c,i)=>{const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim);const ab=sel===i,isAt=c.ini===ca.ini;return(<Card key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setSel(ab?null:i)}><div><p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:10,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p><p style={{fontSize:12,color:m.lucro>=0?K.ok:K.err,marginTop:2}}>{fmtR(m.lucro)} lucro / {m.dias} dias</p></div><span style={{color:K.muted,fontSize:14}}>{ab?"[-]":"[+]"}</span></div>{ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+K.sep}}><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>{[["Bruto",fmtR(m.bruto)],["Lucro",fmtR(m.lucro)],["KM total",m.km_total+" km"],["Viagens",m.viagens]].map(([l,v])=>(<div key={l} style={{background:K.bg,borderRadius:1,padding:8,textAlign:"center",border:"1px solid "+K.sep}}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted}}>{l}</div></div>))}</div>{[["R$/km",fmtR(m.r_km)],["R$/hora",fmtR(m.r_hr)],["Custo/km",fmtR(m.custos/Math.max(1,m.km_total))],["Total horas",fmtHora(m.hrs_total)],["Media h/dia",fmtHora(m.dias>0?m.hrs_total/m.dias:0)+"/dia"],["Custos fixos",fmtR(m.fixo)],["Custos variaveis",fmtR(m.custos_var)]].map(([l,v])=>(<div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{v}</b></div>))}</div></Card>);})}</div>);}
+function FormAbrirTurno({ numTurno, onSalvar, onCancelar, loading }) {
+  const [form, setForm] = useState({ data: hoje(), num: numTurno, km_i: "", h_i: "" });
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: K.text }}>Abrindo {form.num}. turno</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Data" type="date" value={form.data} onChange={v => setForm(f => ({ ...f, data: v }))} />
+        <Inp label="No. do turno" type="number" value={form.num} onChange={v => setForm(f => ({ ...f, num: v }))} />
+        <Inp label="KM inicial" type="number" value={form.km_i} onChange={v => setForm(f => ({ ...f, km_i: v }))} placeholder="75937" />
+        <InpHora label="Hora inicio" value={form.h_i} onChange={v => setForm(f => ({ ...f, h_i: v }))} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+        <Btn sec onClick={onCancelar}>Cancelar</Btn>
+        <Btn onClick={() => { if (!form.km_i || !form.h_i) return alert("Preencha KM e hora."); onSalvar(form); }} disabled={loading}>{loading ? "Abrindo..." : "Abrir turno"}</Btn>
+      </div>
+    </Card>
+  );
+}
 
-function TelaDashboard({turnos,abastecimentos,cfg,controle}){const ca=calcCiclo(cfg.dia_ciclo||1);const[aiMsg,setAiMsg]=useState("");const[loadingAI,setLoadingAI]=useState(false);const mes=calcPeriodo(turnos,abastecimentos,cfg,ca.ini,ca.fim);const pedirIA=()=>{if(!ehPro(controle)){setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");return;}setLoadingAI(true);setTimeout(()=>{if(mes.lucro>0){setAiMsg(`✅ Ciclo positivo! Lucro de ${fmtR(mes.lucro)} em ${mes.dias} dias. Dica: monitore o consumo de combustível para aumentar ainda mais a margem.`);}else{setAiMsg(`️ Ciclo no vermelho. Custos superaram o bruto. Dica: revise seus custos fixos e considere ajustar as metas de R$/km.`);}setLoadingAI(false);},500);};return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}><div style={{marginBottom:14}}><p style={{fontSize:12,color:K.muted}}>{mes.dias} dias trabalhados</p><p style={{fontSize:11,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</p></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}><Card><div style={{fontSize:11,color:K.muted}}>Lucro liquido</div><div style={{fontSize:22,fontWeight:700,color:mes.lucro>=0?K.ok:K.err,marginTop:4}}>{fmtR(mes.lucro)}</div><div style={{fontSize:11,color:K.muted,marginTop:4}}>de {fmtR(mes.bruto)} bruto</div></Card><div style={{display:"flex",flexDirection:"column",gap:8}}><Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Dias trabalhados</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{mes.dias} dias</div></Card><Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Viagens / KM</div><div style={{fontSize:15,fontWeight:700,color:K.text}}>{mes.viagens} / {mes.km_total}km</div></Card></div></div><Card style={{marginBottom:10}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Eficiencia (IE)</p><div style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span>R$/km</span><b style={{color:mes.r_km>=cfg.meta_km?K.ok:K.err}}>{fmtR(mes.r_km)}</b></div><div style={{height:2,background:K.border}}><div style={{height:"100%",width:Math.min(100,(mes.r_km/cfg.meta_km)*60)+"%",background:mes.r_km>=cfg.meta_km?K.ok:K.err}}/></div></div><div><div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span>R$/hora</span><b style={{color:mes.r_hr>=cfg.meta_hora?K.ok:K.err}}>{fmtR(mes.r_hr)}</b></div><div style={{height:2,background:K.border}}><div style={{height:"100%",width:Math.min(100,(mes.r_hr/cfg.meta_hora)*60)+"%",background:mes.r_hr>=cfg.meta_hora?K.ok:K.err}}/></div></div></Card><Card style={{marginBottom:10}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Custos fixos</p><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Parcela do carro</span><b style={{color:K.text}}>{fmtR(cfg.parcela)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>IPVA (proporcional)</span><b style={{color:K.text}}>{fmtR(cfg.ipva/12)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Seguro (proporcional)</span><b style={{color:K.text}}>{fmtR(cfg.seguro/12)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div></Card><Card style={{marginBottom:10}}><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",margin:"16px 0 8px"}}>Custos variaveis</p><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Combustivel</span><b style={{color:K.text}}>{fmtR(mes.comb_total)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Revisao e manutencao</span><b style={{color:K.text}}>{fmtR(mes.rev_t)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Pneu</span><b style={{color:K.text}}>{fmtR(mes.pneu_t)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>Reserva emergencia</span><b style={{color:K.text}}>{fmtR(mes.emer_t)}</b></div><div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div></Card><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>{[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmtHora(mes.hrs_total/mes.dias):"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(<Card key={l} style={{padding:10}}><div style={{fontSize:10,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>))}</div><div style={{background:K.card,borderRadius:2,padding:14,border:"1px solid "+K.border}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do ciclo -- IA</span><button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button></div>{aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.8}}>{aiMsg}</p>:<p style={{fontSize:12,color:K.muted,fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}</div></div>);}
+function SecaoApp({ titulo, dados, setDados, temBonus = true }) {
+  return (
+    <div style={{ border: "1px solid " + K.border, borderRadius: 2, padding: 12, marginTop: 10, background: K.card }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: K.text, marginBottom: 8 }}>{titulo}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v => setDados(d => ({ ...d, bruto: v }))} />
+        <Inp label="No. de viagens" type="number" value={dados.viagens} onChange={v => setDados(d => ({ ...d, viagens: v }))} placeholder="0" />
+      </div>
+      {temBonus && <InpMoeda label="Bonus (R$)" value={dados.bonus} onChange={v => setDados(d => ({ ...d, bonus: v }))} />}
+    </div>
+  );
+}
 
-function TelaAdmin({onSair}){const[usuarios,setUsuarios]=useState([]),[loading,setLoading]=useState(true);const[busca,setBusca]=useState(""),[filtro,setFiltro]=useState("todos");const[selecionado,setSelecionado]=useState(null);const PRECO=14.90;useEffect(()=>{sb.from("usuarios_controle").select("*").order("data_cadastro",{ascending:false}).then(({data})=>{if(data)setUsuarios(data);setLoading(false);});},[]);const salvarUsuario=async(u)=>{const venc=u.vitalicio?null:(u.vencimento||new Date(Date.now()+30*86400000).toISOString().slice(0,10));const upd={ativo:u.ativo,plano:u.plano||"gratuito",vitalicio:!!u.vitalicio,vencimento:venc,observacoes:u.observacoes||""};await sb.from("usuarios_controle").update(upd).eq("id",u.id);setUsuarios(p=>p.map(x=>x.id===u.id?{...x,...upd}:x));setSelecionado(null);alert("Salvo!");};const naoAdmin=usuarios.filter(u=>!u.admin);const pagantes=naoAdmin.filter(u=>u.plano==="pago"&&u.ativo&&!u.vitalicio);const vitaliciosN=naoAdmin.filter(u=>u.vitalicio);const pendentes=naoAdmin.filter(u=>!u.ativo);const hoje7=new Date();hoje7.setDate(hoje7.getDate()+7);const vencendo=naoAdmin.filter(u=>{if(!u.vencimento||u.vitalicio)return false;const v=new Date(u.vencimento+"T12:00:00");return v>=new Date()&&v<=hoje7;});const filtrados=naoAdmin.filter(u=>{const mb=(u.email||"").toLowerCase().includes(busca.toLowerCase())||(u.nome||"").toLowerCase().includes(busca.toLowerCase());const mf=filtro==="todos"||(filtro==="pendentes"&&!u.ativo)||(filtro==="pagantes"&&u.plano==="pago"&&!u.vitalicio&&u.ativo)||(filtro==="vitalicio"&&u.vitalicio)||(filtro==="gratuito"&&u.plano==="gratuito"&&!u.vitalicio&&u.ativo);return mb&&mf;});const PlanoTag=({u})=>{if(u.vitalicio)return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#7B2FBE",color:"#fff",fontWeight:700}}>Vitalicio</span>;if(u.plano==="pago")return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#1565C0",color:"#fff",fontWeight:700}}>Pago</span>;return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#333",color:"#AAA",fontWeight:700}}>Gratuito</span>;};return(<div style={{flex:1,overflowY:"auto",padding:"16px 16px 20px",background:"#111"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div><p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>Painel de controle</p><h2 style={{fontSize:20,fontWeight:700,color:"#FFF"}}>Admin</h2></div><button onClick={onSair} style={{fontSize:12,color:"#AAA",background:"none",border:"1px solid #444",borderRadius:4,padding:"6px 12px",cursor:"pointer"}}>Voltar</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}><div style={{background:"#1B4332",border:"1px solid #2D6A4F",borderRadius:6,padding:12}}><p style={{fontSize:9,color:"#69DB7C",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>RECEITA/MES</p><p style={{fontSize:20,fontWeight:800,color:"#69DB7C"}}>{fmtR(pagantes.length*PRECO)}</p><p style={{fontSize:10,color:"#52B788",fontFamily:"Arial,sans-serif"}}>{pagantes.length} pagantes x {fmtR(PRECO)}</p></div><div style={{background:"#222",borderRadius:6,padding:12}}><p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>TOTAL USUARIOS</p><p style={{fontSize:20,fontWeight:800,color:"#FFF"}}>{naoAdmin.length}</p><p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>{naoAdmin.filter(u=>u.plano==="gratuito"&&!u.vitalicio).length} gratuitos / {vitaliciosN.length} vitalícios</p></div><div style={{background:"#222",borderRadius:6,padding:12}}><p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>PENDENTES</p><p style={{fontSize:20,fontWeight:800,color:pendentes.length>0?"#FF6B6B":"#FFF"}}>{pendentes.length}</p><p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>aguardando ativacao</p></div><div style={{background:"#222",borderRadius:6,padding:12}}><p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>VENCENDO EM 7D</p><p style={{fontSize:20,fontWeight:800,color:vencendo.length>0?"#FFD43B":"#FFF"}}>{vencendo.length}</p><p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>usuarios</p></div></div><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail"style={{width:"100%",border:"1px solid #333",borderRadius:6,padding:"10px 12px",fontSize:13,background:"#222",color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:10}}/><div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto"}}>{[["todos","Todos "+naoAdmin.length],["pendentes","Pendentes "+pendentes.length],["pagantes","Pagantes "+pagantes.length],["vitalicio","Vitalicio "+vitaliciosN.length],["gratuito","Gratuito"]].map(([v,l])=>(<button key={v} onClick={()=>setFiltro(v)}style={{padding:"6px 12px",borderRadius:20,border:"1px solid #333",background:filtro===v?"#FFF":"#222",color:filtro===v?"#111":"#AAA",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",fontWeight:filtro===v?700:400}}>{l}</button>))}</div><p style={{fontSize:11,color:"#444",marginBottom:10,fontFamily:"Arial,sans-serif"}}>{filtrados.length} usuarios encontrados</p>{loading&&<p style={{textAlign:"center",color:"#AAA",padding:20}}>Carregando...</p>}{filtrados.map(u=>(<div key={u.id} onClick={()=>setSelecionado({...u})}style={{background:"#1A1A1A",border:"1px solid #2A2A2A",borderRadius:8,padding:12,marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:36,height:36,borderRadius:"50%",background:"#333",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#FFF",flexShrink:0}}>{(u.nome||u.email||"?")[0].toUpperCase()}</div><div><p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p><p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.email}</p>{u.telefone&&<p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.telefone}</p>}{u.vencimento&&!u.vitalicio&&<p style={{fontSize:9,color:vencendo.find(x=>x.id===u.id)?"#FFD43B":"#555",fontFamily:"Arial,sans-serif"}}>Vence: {dataFmt(u.vencimento)}</p>}</div></div><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}><PlanoTag u={u}/><span style={{fontSize:9,color:u.ativo?"#69DB7C":"#FF6B6B",fontFamily:"Arial,sans-serif"}}>{u.ativo?"Ativo":"Bloqueado"}</span>{u.telefone&&(<a href={"https://wa.me/55"+u.telefone.replace(/\D/g,"")+"?text="+encodeURIComponent("Ola "+(u.nome?u.nome.split(" ")[0]:"")+"! Tudo bem?\n\nVi que voce criou uma conta no *Por km* e queria te apresentar o app pessoalmente.\n\nO *Por km* foi criado por um motorista com mais de 20 anos de experiencia em transporte, para te ajudar a saber exatamente quanto voce lucra por km e por hora rodados.\n\nCom ele voce:\n✅ Registra seus turnos e acompanha R$/km e R$/hora em tempo real\n✅ Ve o lucro real descontando combustivel, pneu, parcela e revisao\n✅ Compara semanas e descobre seus melhores horarios\n✅ Tem analise de IA do seu dia e do seu ciclo\n\nA assinatura e so *R$ 14,90/mes* — menos de R$ 0,50 por dia.\n\nPosso te liberar o acesso agora. Quer experimentar? 🚗")}target="_blank"onClick={e=>e.stopPropagation()}style={{display:"flex",alignItems:"center",gap:4,background:"#25D366",color:"#FFF",padding:"4px 8px",borderRadius:4,fontSize:11,fontWeight:700,textDecoration:"none"}}>WhatsApp</a>)}</div></div>))}{selecionado&&(<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}><div style={{background:"#1A1A1A",borderRadius:"16px 16px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div><p style={{fontSize:16,fontWeight:700,color:"#FFF"}}>{selecionado.nome||"Sem nome"}</p><p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>{selecionado.email}</p><p style={{fontSize:10,color:"#444",fontFamily:"Arial,sans-serif"}}>Cadastro: {selecionado.data_cadastro?new Date(selecionado.data_cadastro).toLocaleDateString("pt-BR"):"--"}</p></div><button onClick={()=>setSelecionado(null)} style={{background:"none",border:"none",color:"#AAA",fontSize:22,cursor:"pointer",lineHeight:1}}>x</button></div><div style={{background:"#222",borderRadius:10,padding:14,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>Acesso Vitalicio</p><p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>Nunca expira</p></div><div onClick={()=>setSelecionado(p=>({...p,vitalicio:!p.vitalicio,plano:!p.vitalicio?"pago":p.plano}))}style={{width:48,height:26,borderRadius:13,background:selecionado.vitalicio?"#7B2FBE":"#333",position:"relative",cursor:"pointer",transition:"background .2s",flexShrink:0}}><div style={{position:"absolute",top:3,left:selecionado.vitalicio?22:3,width:20,height:20,borderRadius:"50%",background:"#FFF",transition:"left .2s"}}/></div></div></div><p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Plano</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>{["gratuito","pago"].map(p=>(<button key={p} onClick={()=>setSelecionado(x=>({...x,plano:p}))}style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:selecionado.plano===p&&!selecionado.vitalicio?"#1565C0":"#333",color:selecionado.plano===p&&!selecionado.vitalicio?"#FFF":"#AAA"}}>{p==="gratuito"?"Gratuito":"Pago"}</button>))}</div><p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Status</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><button onClick={()=>setSelecionado(p=>({...p,ativo:true}))}style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:selecionado.ativo?"#1B4332":"#333",color:selecionado.ativo?"#69DB7C":"#AAA"}}>Ativo</button><button onClick={()=>setSelecionado(p=>({...p,ativo:false}))}style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:!selecionado.ativo?"#7B1010":"#333",color:!selecionado.ativo?"#FF6B6B":"#AAA"}}>Bloqueado</button></div>{!selecionado.vitalicio&&<><p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Vencimento</p><input type="date" value={selecionado.vencimento||""} onChange={e=>setSelecionado(p=>({...p,vencimento:e.target.value}))}style={{width:"100%",background:"#222",border:"1px solid #333",borderRadius:8,padding:"10px 12px",fontSize:14,color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:4}}/><p style={{fontSize:10,color:"#444",marginBottom:12,fontFamily:"Arial,sans-serif"}}>Se nao informar, sera 30 dias a partir de hoje</p></>}<p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Observacoes</p><input value={selecionado.observacoes||""} onChange={e=>setSelecionado(p=>({...p,observacoes:e.target.value}))}placeholder="Ex: Pagou em 10/07 via PIX"style={{width:"100%",background:"#222",border:"1px solid #333",borderRadius:8,padding:"10px 12px",fontSize:13,color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:16}}/><button onClick={()=>salvarUsuario(selecionado)}style={{width:"100%",padding:14,borderRadius:8,border:"none",background:"#69DB7C",color:"#111",fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}>Salvar alteracoes</button><button onClick={async()=>{if(!window.confirm("Excluir usuario "+selecionado.email+"? Esta acao nao pode ser desfeita."))return;await sb.from("usuarios_controle").delete().eq("id",selecionado.id);setUsuarios(p=>p.filter(x=>x.id!==selecionado.id));setSelecionado(null);alert("Usuario excluido!");}} style={{width:"100%",padding:12,borderRadius:8,border:"1px solid #7B1010",background:"transparent",color:"#FF6B6B",fontSize:13,fontWeight:700,cursor:"pointer"}}>Excluir cadastro</button></div></div>)}</div>);}
+function FormFecharTurno({ turno, onSalvar, onCancelar, loading }) {
+  const [km_f, setKmF] = useState("");
+  const [h_f, setHF] = useState("");
+  const [uber, setUber] = useState({ bruto: "", viagens: "", bonus: "" });
+  const [nov, setNov] = useState({ bruto: "", viagens: "", bonus: "" });
+  const [part, setPart] = useState({ bruto: "", viagens: "" });
+  const totalBruto = parseN(uber.bruto) + parseN(nov.bruto) + parseN(part.bruto);
+  const totalBonus = parseN(uber.bonus) + parseN(nov.bonus);
+  const totalViagens = parseN(uber.viagens) + parseN(nov.viagens) + parseN(part.viagens);
+  const km = parseN(km_f) - parseN(turno.km_i);
+  const hrs = horasDiff(turno.h_i, h_f);
 
-function App(){const[session,setSession]=useState(null),[loading,setLoading]=useState(true);const[nav,setNav]=useState("dashboard");const[cfg,setCfg]=useState(CFG0),[turnos,setTurnos]=useState([]),[abast,setAbast]=useState([]);const[controle,setControle]=useState(null),[telaAdmin,setTelaAdmin]=useState(false);const isAdmin=session?.user?.email===ADMIN_EMAIL;const carregarDados=async(uid)=>{setLoading(true);try{const{data:ctrl}=await sb.from("usuarios_controle").select("*").eq("user_id",uid).single();setControle(ctrl||null);}catch(e){}try{const{data:c}=await sb.from("configuracoes").select("*").eq("user_id",uid).single();if(c)setCfg(c);}catch(e){}try{const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});if(t){setTurnos(t);const turnoAberto=t.find(x=>x.data===hoje()&&x.km_i&&(!x.km_f||!x.bruto));if(turnoAberto)setNav("diario");}}catch(e){}try{const{data:a}=await sb.from("abastecimentos").select("*").eq("user_id",uid).order("data",{ascending:false});if(a)setAbast(a);}catch(e){}setLoading(false);};useEffect(()=>{const timer=setTimeout(()=>setLoading(false),6000);sb.auth.getSession().then(({data:{session}})=>{clearTimeout(timer);setSession(session);if(session)carregarDados(session.user.id);else setLoading(false);}).catch(()=>{clearTimeout(timer);setLoading(false);});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setSession(s);if(s)carregarDados(s.user.id);});return()=>subscription.unsubscribe();},[]);const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};const navItems=[{id:"dashboard",icon:"🏠",label:"Dashboard"},{id:"diario",icon:"📋",label:"Diario"},{id:"combustivel",icon:"⛽",label:"Combust."},{id:"comparativo",icon:"📊",label:"Comparar"},{id:"historico",icon:"📁",label:"Historico"},{id:"config",icon:"⚙",label:"Config."}];if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}><div style={{fontSize:32,fontFamily:"Arial"}}>&#128663;</div><p style={{color:K.muted,fontSize:14}}>Carregando...</p></div>);if(!session)return(<div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}><TelaAuth onLogado={()=>sb.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/></div>);if(telaAdmin&&isAdmin)return(<div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#111",fontFamily:"Georgia,serif"}}><div style={{padding:"14px 16px 12px",borderBottom:"1px solid #222",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}><h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>Por km Admin</h1><button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button></div><TelaAdmin onSair={()=>setTelaAdmin(false)}/></div>);if(controle&&!controle.ativo&&!isAdmin)return(<div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}><TelaAguardando onSair={sair}/></div>);return(<div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}><div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}><h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km <span style={{fontSize:10,color:K.muted,fontWeight:400}}>v1.5</span></h1><span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span><div style={{display:"flex",gap:8,alignItems:"center"}}>{isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}<button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button></div></div><div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>{nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} controle={controle}/>}
-{nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))} controle={controle}/>}
-{nav==="combustivel"&&<TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a=>setAbast(p=>[a,...p])} onUpdate={a=>setAbast(p=>p.map(x=>x.id===a.id?a:x))} onDelete={id=>setAbast(p=>p.filter(x=>x.id!==id))}/>}
-{nav==="comparativo"&&<TelaComparativo turnos={turnos} controle={controle}/>}
-{nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} controle={controle}/>}
-{nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={setCfg}/>}</div>
-<div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
-{navItems.map(n=>(<button key={n.id} onClick={()=>setNav(n.id)}style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}><span style={{fontSize:18,color:nav===n.id?K.text:K.muted}}>{n.icon}</span><span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span></button>))}
-</div></div>);}
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, color: K.text }}>Encerrando {turno.num}. turno</p>
+      <p style={{ fontSize: 11, color: K.muted, marginBottom: 8 }}>Iniciado as {turno.h_i} -- KM inicial: {turno.km_i}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031" />
+        <InpHora label="Hora fim" value={h_f} onChange={setHF} />
+      </div>
+      <SecaoApp titulo="Uber" dados={uber} setDados={setUber} />
+      <SecaoApp titulo="99" dados={nov} setDados={setNov} />
+      <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false} />
+      {totalBruto > 0 && (
+        <div style={{ marginTop: 12, background: K.bg, borderRadius: 2, padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+          {[["KM rodado", km > 0 ? km + " km" : "--"], ["Horas", hrs > 0 ? fmtHora(hrs) : "--"], ["Bruto", fmtR(totalBruto)], ["Bonus", fmtR(totalBonus)], ["Total c/bonus", fmtR(totalBruto + totalBonus)], ["Viagens", totalViagens + "v"]].map(([l, v]) => (
+            <div key={l}><div style={{ fontSize: 13, fontWeight: 700, color: K.text }}>{v}</div><div style={{ fontSize: 9, color: K.muted }}>{l}</div></div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+        <Btn sec onClick={onCancelar}>Cancelar</Btn>
+        <Btn onClick={() => {
+          if (!km_f || !h_f) return alert("Preencha KM final e hora fim.");
+          if (totalBruto === 0) return alert("Informe o bruto de pelo menos um app.");
+          if (totalViagens === 0) return alert("Informe o numero de viagens.");
+          onSalvar({ ...turno, km_f: parseN(km_f), h_f, bruto: totalBruto, viagens: totalViagens, bonus: totalBonus,
+            uber_bruto: parseN(uber.bruto), uber_viagens: parseN(uber.viagens), uber_bonus: parseN(uber.bonus),
+            nov99_bruto: parseN(nov.bruto), nov99_viagens: parseN(nov.viagens), nov99_bonus: parseN(nov.bonus),
+            part_bruto: parseN(part.bruto), part_viagens: parseN(part.viagens) });
+        }} disabled={loading}>{loading ? "Fechando..." : "Fechar turno"}</Btn>
+      </div>
+    </Card>
+  );
+}
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function TelaDiario({ turnos, cfg, userId, onAdd, onUpdate, onDelete, controle }) {
+  const [modo, setModo] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [aiMsg, setAiMsg] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
+  const turnosHoje = turnos.filter(t => t.data === hoje()).sort((a, b) => a.num - b.num);
+  const turnosAnt = turnos.filter(t => t.data !== hoje()).sort((a, b) => b.data.localeCompare(a.data) || a.num - b.num);
+  const turnoAberto = turnosHoje.find(t => t.km_i && (!t.km_f || !t.bruto));
+  const ca = calcCiclo(cfg.dia_ciclo || 1);
+  const turnosCiclo = turnos.filter(t => t.data && t.data >= ca.ini && t.data <= ca.fim && parseN(t.km_f) > 0 && parseN(t.bruto) > 0);
+  const totalDias = [...new Set(turnosCiclo.map(t => t.data))].length;
+  const totalKm = turnosCiclo.reduce((s, t) => s + (parseN(t.km_f) - parseN(t.km_i)), 0);
+  const totalBruto = turnosCiclo.reduce((s, t) => s + parseN(t.bruto) + parseN(t.bonus), 0);
+  const totalViagens = turnosCiclo.reduce((s, t) => s + parseN(t.viagens), 0);
+
+  const calcT = (t) => {
+    const k = parseN(t.km_f) - parseN(t.km_i), h = horasDiff(t.h_i, t.h_f), b = parseN(t.bruto), bonus = parseN(t.bonus);
+    const aut = parseN(cfg.autonomia) || 7;
+    const c = k > 0 ? (k / aut) * parseN(cfg.preco_litro) : 0;
+    const lucro = b - c - k * (parseN(cfg.pneu_total) / Math.max(1, parseN(cfg.pneu_km))) - k * parseN(cfg.revisao_km) - k * parseN(cfg.emergencia_km);
+    return { k, h, b, bonus, lucro, r_km: k > 0 ? b / k : 0, r_hr: h > 0 ? b / h : 0 };
+  };
+
+  const turnosHojeFechados = turnosHoje.filter(t => parseN(t.km_f) > 0 && parseN(t.bruto) > 0);
+  const resumoDia = turnosHojeFechados.reduce((acc, t) => {
+    const k = parseN(t.km_f) - parseN(t.km_i), h = horasDiff(t.h_i, t.h_f);
+    return { bruto: acc.bruto + parseN(t.bruto), bonus: acc.bonus + parseN(t.bonus), km: acc.km + k, hrs: acc.hrs + h, viagens: acc.viagens + parseN(t.viagens) };
+  }, { bruto: 0, bonus: 0, km: 0, hrs: 0, viagens: 0 });
+  const totDia = resumoDia.bruto + resumoDia.bonus;
+  const diaRkm = resumoDia.km > 0 ? totDia / resumoDia.km : 0;
+  const diaRhr = resumoDia.hrs > 0 ? totDia / resumoDia.hrs : 0;
+
+  const abrirTurno = async (form) => {
+    setLoading(true);
+    const { data, error } = await sb.from("turnos").insert({ user_id: userId, data: form.data, num: parseN(form.num), km_i: parseN(form.km_i), km_f: 0, h_i: form.h_i, h_f: "", bruto: 0, viagens: 0, bonus: 0 }).select().single();
+    if (!error) { onAdd(data); setModo(null); } else alert("Erro: " + error.message);
+    setLoading(false);
+  };
+
+  const fecharTurno = async (form) => {
+    setLoading(true);
+    const upd = {
+      km_f: parseN(form.km_f), h_f: form.h_f, bruto: parseN(form.bruto), viagens: parseN(form.viagens), bonus: 0,
+      uber_bruto: parseN(form.uber_bruto) || 0, uber_viagens: parseN(form.uber_viagens) || 0, uber_bonus: parseN(form.uber_bonus) || 0,
+      nov99_bruto: parseN(form.nov99_bruto) || 0, nov99_viagens: parseN(form.nov99_viagens) || 0, nov99_bonus: parseN(form.nov99_bonus) || 0,
+      part_bruto: parseN(form.part_bruto) || 0, part_viagens: parseN(form.part_viagens) || 0
+    };
+    const { data, error } = await sb.from("turnos").update(upd).eq("id", turnoAberto.id).select().single();
+    if (!error) { onUpdate(data); setModo(null); } else alert("Erro: " + error.message);
+    setLoading(false);
+  };
+
+  const excluir = async (t) => {
+    if (!window.confirm("Excluir " + t.num + ". turno de " + dataFmt(t.data) + "?")) return;
+    setLoading(true);
+    const { error } = await sb.from("turnos").delete().eq("id", t.id);
+    if (!error) onDelete(t.id); else alert("Erro: " + error.message);
+    setLoading(false);
+  };
+
+  const pedirIA = () => {
+    if (!ehPro(controle)) {
+      setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");
+      return;
+    }
+    setLoadingAI(true);
+    const totB = turnosHoje.reduce((s, t) => s + parseN(t.bruto) + parseN(t.bonus), 0);
+    const totK = turnosHoje.reduce((s, t) => s + (parseN(t.km_f) - parseN(t.km_i)), 0);
+    const rKm = totK > 0 ? (totB / totK).toFixed(2) : 0;
+    setTimeout(() => {
+      if (rKm >= cfg.meta_km) {
+        setAiMsg("✅ Bom dia! Você fez R$" + rKm + "/km (meta: R$" + cfg.meta_km + "). Continue assim! Dica: mantenha o ritmo nas horas de pico.");
+      } else {
+        setAiMsg("⚠️ Você fez R$" + rKm + "/km (meta: R$" + cfg.meta_km + "). Dica: tente focar em horários de alta demanda para melhorar.");
+      }
+      setLoadingAI(false);
+    }, 500);
+  };
+
+  const CardTurno = ({ t }) => {
+    const aberto = t.km_i && (!t.km_f || !t.bruto);
+    const { k, h, b, bonus, lucro, r_km, r_hr } = calcT(t);
+    const okKm = r_km >= parseN(cfg.meta_km), okHr = r_hr >= parseN(cfg.meta_hora);
+    return (
+      <Card style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: K.text }}>{t.num}. Turno -- {dataFmt(t.data)}</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {aberto ? <span style={{ fontSize: 10, color: K.muted, border: "1px solid " + K.border, padding: "2px 6px", borderRadius: 1 }}>Em aberto</span>
+              : <span style={{ fontSize: 10, color: lucro > 0 ? K.ok : K.err, border: "1px solid " + (lucro > 0 ? K.ok : K.err), padding: "2px 6px", borderRadius: 1 }}>{lucro > 0 ? "v" : "x"}</span>}
+            <button onClick={() => excluir(t)} style={{ fontSize: 11, padding: "3px 8px", background: K.bg, border: "1px solid " + K.border, borderRadius: 1, cursor: "pointer", color: K.err }}>X</button>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderTop: "1px solid " + K.sep }}><span style={{ color: K.muted }}>KM inicial / Hora inicio</span><b style={{ color: K.text }}>{t.km_i} / {t.h_i || "--"}</b></div>
+        {!aberto && <>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderTop: "1px solid " + K.sep }}><span style={{ color: K.muted }}>KM rodado / Horas</span><b style={{ color: K.text }}>{k} km / {fmtHora(h)}</b></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderTop: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Viagens / Bruto</span><b style={{ color: K.text }}>{t.viagens} / {fmtR(b)}</b></div>
+          {bonus > 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderTop: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Bonus</span><b style={{ color: K.text }}>{fmtR(bonus)}</b></div>}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderTop: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Lucro est.</span><b style={{ color: lucro > 0 ? K.ok : K.err }}>{fmtR(lucro)}</b></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8, paddingTop: 8, borderTop: "1px solid " + K.sep }}>
+            <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "4px 6px" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: okKm ? K.ok : K.err }}>{fmtR(r_km)}/km</div>
+              <div style={{ fontSize: 9, color: K.muted }}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+            </div>
+            <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "4px 6px" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: okHr ? K.ok : K.err }}>{fmtR(r_hr)}/h</div>
+              <div style={{ fontSize: 9, color: K.muted }}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+            </div>
+          </div>
+        </>}
+      </Card>
+    );
+  };
+
+  const ResumoDiaCard = ({ res, rKm, rHr, tot }) => (
+    <Card style={{ marginBottom: 12 }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Resumo do dia</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "8px 6px" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: K.text }}>{fmtR(tot)}</div>
+          <div style={{ fontSize: 9, color: K.muted }}>Bruto c/ bonus</div>
+        </div>
+        <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "8px 6px" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: K.text }}>{res.viagens}v / {res.km}km</div>
+          <div style={{ fontSize: 9, color: K.muted }}>Viagens / KM</div>
+        </div>
+        <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "8px 6px" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: K.text }}>{fmtHora(res.hrs)}</div>
+          <div style={{ fontSize: 9, color: K.muted }}>Horas trabalhadas</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "6px" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: rKm >= parseN(cfg.meta_km) ? K.ok : K.err }}>{fmtR(rKm)}/km</div>
+          <div style={{ fontSize: 9, color: K.muted }}>dia c/ bonus</div>
+        </div>
+        <div style={{ textAlign: "center", border: "1px solid " + K.border, borderRadius: 1, padding: "6px" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: rHr >= parseN(cfg.meta_hora) ? K.ok : K.err }}>{fmtR(rHr)}/h</div>
+          <div style={{ fontSize: 9, color: K.muted }}>dia c/ bonus</div>
+        </div>
+      </div>
+    </Card>
+  );
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      {turnosCiclo.length > 0 && <>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Suas medias gerais</p>
+          <span style={{ fontSize: 10, color: K.muted }}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {[["KM/dia", fmt(totalDias > 0 ? totalKm / totalDias : 0, 0) + " km"], ["Bruto/dia", fmtR(totalDias > 0 ? totalBruto / totalDias : 0)], ["Viagens/dia", fmt(totalDias > 0 ? totalViagens / totalDias : 0, 1)], ["R$/km", fmtR(totalKm > 0 ? totalBruto / totalKm : 0)]].map(([l, v]) => (
+            <Card key={l} style={{ padding: 10, textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: K.text }}>{v}</div>
+              <div style={{ fontSize: 10, color: K.muted, marginTop: 2 }}>{l}</div>
+            </Card>
+          ))}
+        </div>
+      </>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: K.text }}>Hoje, {dataFmt(hoje())}</p>
+        {!turnoAberto ? <button onClick={() => setModo(modo === "abrir" ? null : "abrir")} style={{ padding: "9px 16px", background: K.text, color: K.bg, border: "none", borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Abrir turno</button>
+          : <button onClick={() => setModo(modo === "fechar" ? null : "fechar")} style={{ padding: "9px 16px", background: K.bg, color: K.text, border: "1px solid " + K.text, borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar turno</button>}
+      </div>
+      {modo === "abrir" && !turnoAberto && <FormAbrirTurno numTurno={turnosHoje.length + 1} onSalvar={abrirTurno} onCancelar={() => setModo(null)} loading={loading} />}
+      {modo === "fechar" && turnoAberto && <FormFecharTurno turno={turnoAberto} onSalvar={fecharTurno} onCancelar={() => setModo(null)} loading={loading} />}
+      {turnosHoje.length === 0 && !modo && (
+        <div style={{ textAlign: "center", padding: "24px 20px", color: K.muted, background: K.card, borderRadius: 2, marginBottom: 14, border: "1px solid " + K.border }}>
+          <p style={{ fontSize: 13 }}>Nenhum turno hoje ainda.</p>
+          <p style={{ fontSize: 12, marginTop: 4 }}>Toque em "Abrir turno" para comecar.</p>
+        </div>
+      )}
+      {turnosHoje.map(t => <CardTurno key={t.id} t={t} />)}
+      {turnosHojeFechados.length > 0 && <ResumoDiaCard res={resumoDia} rKm={diaRkm} rHr={diaRhr} tot={totDia} />}
+      {turnosHojeFechados.length > 0 && (
+        <div style={{ background: K.card, borderRadius: 2, padding: 14, marginBottom: 16, border: "1px solid " + K.border }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: K.text }}>Analise do dia -- IA</span>
+            <button onClick={pedirIA} disabled={loadingAI} style={{ padding: "5px 10px", fontSize: 11, background: K.text, color: K.bg, border: "none", borderRadius: 1, cursor: "pointer", opacity: loadingAI ? 0.5 : 1 }}>{loadingAI ? "Analisando..." : "Analisar"}</button>
+          </div>
+          {aiMsg ? <p style={{ fontSize: 12, color: K.muted, lineHeight: 1.7 }}>{aiMsg}</p>
+            : <p style={{ fontSize: 12, color: K.muted, fontStyle: "italic" }}>Toque em "Analisar" para a IA avaliar seu dia.</p>}
+        </div>
+      )}
+      {turnosAnt.length > 0 && <>
+        <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Historico</p>
+        {[...new Set(turnosAnt.map(t => t.data))].map(data => {
+          const td = turnosAnt.filter(t => t.data === data).sort((a, b) => a.num - b.num);
+          const fechados = td.filter(t => parseN(t.km_f) > 0 && parseN(t.bruto) > 0);
+          const res = fechados.reduce((acc, t) => {
+            const k = parseN(t.km_f) - parseN(t.km_i), h = horasDiff(t.h_i, t.h_f);
+            return { bruto: acc.bruto + parseN(t.bruto), bonus: acc.bonus + parseN(t.bonus), km: acc.km + k, hrs: acc.hrs + h, viagens: acc.viagens + parseN(t.viagens) };
+          }, { bruto: 0, bonus: 0, km: 0, hrs: 0, viagens: 0 });
+          const tot = res.bruto + res.bonus;
+          const rKm = res.km > 0 ? tot / res.km : 0, rHr = res.hrs > 0 ? tot / res.hrs : 0;
+          return (
+            <div key={data}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: K.muted, margin: "12px 0 6px", textTransform: "uppercase", letterSpacing: 1 }}>{dataFmt(data)}</p>
+              {td.map(t => <CardTurno key={t.id} t={t} />)}
+              {fechados.length > 0 && <ResumoDiaCard res={res} rKm={rKm} rHr={rHr} tot={tot} />}
+            </div>
+          );
+        })}
+      </>}
+    </div>
+  );
+}
+
+function FormAbast({ titulo, dados, setDados, onSalvar, onCancelar, loading }) {
+  const isGNV = dados.tipo === "GNV";
+  const quant = parseN(dados.litros);
+  const kmlF = quant > 0 ? parseN(dados.km_rod) / quant : 0;
+  const un = isGNV ? "m3" : "L";
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: K.text }}>{titulo}</p>
+      <Lbl c="Tipo de combustivel" />
+      <div style={{ display: "flex", border: "1px solid " + K.border, borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
+        {["Gasolina", "Alcool", "GNV"].map(t => (
+          <button key={t} onClick={() => setDados(f => ({ ...f, tipo: t }))}
+            style={{ flex: 1, padding: "9px 4px", border: "none", cursor: "pointer", fontSize: 12, background: dados.tipo === t ? K.text : K.card, color: dados.tipo === t ? K.bg : K.muted, fontWeight: dados.tipo === t ? 700 : 400 }}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Inp label="Data" type="date" value={dados.data} onChange={v => setDados(f => ({ ...f, data: v }))} />
+        <Inp label={"Preco por " + (isGNV ? "m3" : "litro") + " (R$)"} type="number" value={dados.preco} onChange={v => setDados(f => ({ ...f, preco: v }))} placeholder="4.89" />
+        <Inp label={isGNV ? "m3 abastecidos" : "Litros abastecidos"} type="number" value={dados.litros} onChange={v => setDados(f => ({ ...f, litros: v }))} placeholder="40.0" />
+        <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v => setDados(f => ({ ...f, km_rod: v }))} placeholder="280" />
+      </div>
+      {kmlF > 0 && (
+        <div style={{ marginTop: 10, background: K.bg, borderRadius: 2, padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center", border: "1px solid " + K.border }}>
+          {[["km/" + un, fmt(kmlF)], ["R$/km", "R$" + fmt(parseN(dados.preco) / kmlF, 3)], ["Total", fmtR(parseN(dados.litros) * parseN(dados.preco))]].map(([l, v]) => (
+            <div key={l}><div style={{ fontSize: 14, fontWeight: 700, color: K.text }}>{v}</div><div style={{ fontSize: 10, color: K.muted }}>{l}</div></div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+        <Btn sec onClick={onCancelar}>Cancelar</Btn>
+        <Btn onClick={onSalvar} disabled={loading}>{loading ? "Salvando..." : "Salvar"}</Btn>
+      </div>
+    </Card>
+  );
+}
+
+function TelaCombustivel({ abastecimentos, cfg, userId, onAdd, onUpdate, onDelete }) {
+  const [form, setForm] = useState({ data: hoje(), tipo: "Gasolina", km_rod: "", litros: "", preco: "" });
+  const [mostrar, setMostrar] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const excluirAbast = async (a) => {
+    if (!window.confirm("Excluir abastecimento de " + dataFmt(a.data) + "?")) return;
+    const { error } = await sb.from("abastecimentos").delete().eq("id", a.id);
+    if (!error) onDelete(a.id); else alert("Erro: " + error.message);
+  };
+
+  const ultimos4 = abastecimentos.slice(0, 4);
+  const media = ultimos4.length > 0 ? ultimos4.reduce((s, a) => s + parseN(a.km_rod) / Math.max(0.01, parseN(a.litros)), 0) / ultimos4.length : 0;
+  const mediaPreco = ultimos4.length > 0 ? ultimos4.reduce((s, a) => s + parseN(a.preco), 0) / ultimos4.length : 0;
+
+  const salvar = async () => {
+    if (!form.km_rod || !form.litros || !form.preco) return alert("Preencha todos os campos.");
+    setLoading(true);
+    const { data, error } = await sb.from("abastecimentos").insert({ user_id: userId, data: form.data, tipo: form.tipo, km_rod: parseN(form.km_rod), litros: parseN(form.litros), preco: parseN(form.preco) }).select().single();
+    if (!error) { onAdd(data); setMostrar(false); setForm({ data: hoje(), tipo: "Gasolina", km_rod: "", litros: "", preco: "" }); }
+    else alert("Erro: " + error.message);
+    setLoading(false);
+  };
+
+  const salvarEd = async () => {
+    setLoading(true);
+    const { data, error } = await sb.from("abastecimentos").update({ data: editando.data, tipo: editando.tipo, km_rod: parseN(editando.km_rod), litros: parseN(editando.litros), preco: parseN(editando.preco) }).eq("id", editando.id).select().single();
+    if (!error) { onUpdate(data); setEditando(null); } else alert("Erro: " + error.message);
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: K.muted }}>Controle de consumo</p>
+        <button onClick={() => { setMostrar(!mostrar); setEditando(null); }} style={{ padding: "7px 14px", background: K.text, color: K.bg, border: "none", borderRadius: 2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Registrar</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+        {[["Media km/L (ult.4)", fmt(media)], ["Custo med./km (ult.4)", "R$" + fmt(media > 0 ? mediaPreco / media : 0, 3)]].map(([l, v]) => (
+          <Card key={l} style={{ padding: 10, textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: K.text }}>{v}</div>
+            <div style={{ fontSize: 10, color: K.muted, marginTop: 2 }}>{l}</div>
+          </Card>
+        ))}
+      </div>
+      {mostrar && <FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={() => setMostrar(false)} loading={loading} />}
+      {editando && <FormAbast titulo={"Editar -- " + dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={() => setEditando(null)} loading={loading} />}
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Historico</p>
+      {abastecimentos.length === 0 && <p style={{ color: K.muted, textAlign: "center", padding: 24, fontSize: 13 }}>Nenhum abastecimento registrado.</p>}
+      {abastecimentos.map(a => {
+        const kmlA = parseN(a.litros) > 0 ? parseN(a.km_rod) / parseN(a.litros) : 0;
+        const un = a.tipo === "GNV" ? "m3" : "L";
+        return (
+          <Card key={a.id} style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: K.text }}>{dataFmt(a.data)}</span>
+                <span style={{ fontSize: 11, padding: "2px 8px", border: "1px solid " + K.border, borderRadius: 1, color: K.muted }}>{a.tipo}</span>
+              </div>
+              <button onClick={() => { setEditando({ ...a }); setMostrar(false); }} style={{ fontSize: 11, padding: "3px 8px", background: K.bg, border: "1px solid " + K.border, borderRadius: 1, cursor: "pointer", color: K.muted }}>✏️</button>
+              <button onClick={() => excluirAbast(a)} style={{ fontSize: 11, padding: "3px 8px", background: K.bg, border: "1px solid " + K.border, borderRadius: 1, cursor: "pointer", color: K.err }}>X</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+              {[["KM rod.", a.km_rod + " km"], [un, fmt(a.litros) + un], ["Total", fmtR(parseN(a.litros) * parseN(a.preco))], ["km/" + un, fmt(kmlA)]].map(([l, v], i) => (
+                <div key={l} style={{ textAlign: "center", borderRight: i < 3 ? "1px solid " + K.sep : "none" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: i === 3 ? (kmlA >= media * 0.92 ? K.ok : K.err) : K.text }}>{v}</div>
+                  <div style={{ fontSize: 10, color: K.muted }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function TelaComparativo({ turnos, controle }) {
+  if (!ehPro(controle)) {
+    return (
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+        <UpgradeCard titulo="Comparativo de Semanas" descricao="Motoristas Pro descobrem que ganham 18% mais ao comparar suas semanas e identificar seus melhores dias. Desbloqueie análises ilimitadas." />
+      </div>
+    );
+  }
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", color: K.muted }}>
+      <p>Em desenvolvimento</p>
+    </div>
+  );
+}
+
+function TelaHistorico({ turnos, abastecimentos, cfg, controle }) {
+  const ciclos = useMemo(() => gerarCiclos(cfg.dia_ciclo || 1, turnos), [turnos, cfg]);
+  const [sel, setSel] = useState(null);
+  const ca = calcCiclo(cfg.dia_ciclo || 1);
+  const ciclosVisiveis = ehPro(controle) ? ciclos : ciclos.slice(0, 2);
+
+  if (ciclos.length === 0) return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", color: K.muted, flexDirection: "column", gap: 12 }}>
+      <p style={{ fontSize: 14 }}>Nenhum ciclo encontrado ainda.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Historico de ciclos</p>
+      {!ehPro(controle) && ciclos.length > 2 && (
+        <div style={{ background: "#FFF3CD", border: "1px solid #FFC107", borderRadius: 2, padding: 12, marginBottom: 14, textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "#856404", marginBottom: 8 }}>📊 Você está vendo apenas os 2 ciclos mais recentes</p>
+          <p style={{ fontSize: 11, color: "#856404" }}>Faça upgrade para ver todo seu histórico</p>
+        </div>
+      )}
+      {ciclosVisiveis.map((c, i) => {
+        const m = calcPeriodo(turnos, abastecimentos, cfg, c.ini, c.fim);
+        const ab = sel === i, isAt = c.ini === ca.ini;
+        return (
+          <Card key={i} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setSel(ab ? null : i)}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: K.text }}>{c.label} {isAt && <span style={{ fontSize: 10, background: K.bg, color: K.muted, padding: "1px 6px", borderRadius: 1, border: "1px solid " + K.border, marginLeft: 4 }}>atual</span>}</p>
+                <p style={{ fontSize: 12, color: m.lucro >= 0 ? K.ok : K.err, marginTop: 2 }}>{fmtR(m.lucro)} lucro / {m.dias} dias</p>
+              </div>
+              <span style={{ color: K.muted, fontSize: 14 }}>{ab ? "[-]" : "[+]"}</span>
+            </div>
+            {ab && <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + K.sep }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                {[["Bruto", fmtR(m.bruto)], ["Lucro", fmtR(m.lucro)], ["KM total", m.km_total + " km"], ["Viagens", m.viagens]].map(([l, v]) => (
+                  <div key={l} style={{ background: K.bg, borderRadius: 1, padding: 8, textAlign: "center", border: "1px solid " + K.sep }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: K.text }}>{v}</div>
+                    <div style={{ fontSize: 10, color: K.muted }}>{l}</div>
+                  </div>
+                ))}
+              </div>
+              {[["R$/km", fmtR(m.r_km)], ["R$/hora", fmtR(m.r_hr)], ["Custo/km", fmtR(m.custos / Math.max(1, m.km_total))], ["Total horas", fmtHora(m.hrs_total)], ["Media h/dia", fmtHora(m.dias > 0 ? m.hrs_total / m.dias : 0) + "/dia"], ["Custos fixos", fmtR(m.fixo)], ["Custos variaveis", fmtR(m.custos_var)]].map(([l, v]) => (
+                <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0", borderBottom: "1px solid " + K.sep }}>
+                  <span style={{ color: K.muted }}>{l}</span><b style={{ color: K.text }}>{v}</b>
+                </div>
+              ))}
+            </div>}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function TelaDashboard({ turnos, abastecimentos, cfg, controle }) {
+  const ca = calcCiclo(cfg.dia_ciclo || 1);
+  const [aiMsg, setAiMsg] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
+  const mes = calcPeriodo(turnos, abastecimentos, cfg, ca.ini, ca.fim);
+
+  const pedirIA = () => {
+    if (!ehPro(controle)) {
+      setAiMsg("🔒 Análise de IA exclusiva para assinantes Pro. Faça upgrade para desbloquear insights personalizados.");
+      return;
+    }
+    setLoadingAI(true);
+    setTimeout(() => {
+      if (mes.lucro > 0) {
+        setAiMsg("✅ Ciclo positivo! Lucro de " + fmtR(mes.lucro) + " em " + mes.dias + " dias. Dica: monitore o consumo de combustível para aumentar ainda mais a margem.");
+      } else {
+        setAiMsg("⚠️ Ciclo no vermelho. Custos superaram o bruto. Dica: revise seus custos fixos e considere ajustar as metas de R$/km.");
+      }
+      setLoadingAI(false);
+    }, 500);
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: K.muted }}>{mes.dias} dias trabalhados</p>
+        <p style={{ fontSize: 11, color: K.muted }}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <Card>
+          <div style={{ fontSize: 11, color: K.muted }}>Lucro liquido</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: mes.lucro >= 0 ? K.ok : K.err, marginTop: 4 }}>{fmtR(mes.lucro)}</div>
+          <div style={{ fontSize: 11, color: K.muted, marginTop: 4 }}>de {fmtR(mes.bruto)} bruto</div>
+        </Card>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Card style={{ padding: 10 }}>
+            <div style={{ fontSize: 10, color: K.muted }}>Dias trabalhados</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: K.text }}>{mes.dias} dias</div>
+          </Card>
+          <Card style={{ padding: 10 }}>
+            <div style={{ fontSize: 10, color: K.muted }}>Viagens / KM</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: K.text }}>{mes.viagens} / {mes.km_total}km</div>
+          </Card>
+        </div>
+      </div>
+      <Card style={{ marginBottom: 10 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Eficiencia (IE)</p>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}><span>R$/km</span><b style={{ color: mes.r_km >= cfg.meta_km ? K.ok : K.err }}>{fmtR(mes.r_km)}</b></div>
+          <div style={{ height: 2, background: K.border }}><div style={{ height: "100%", width: Math.min(100, (mes.r_km / cfg.meta_km) * 60) + "%", background: mes.r_km >= cfg.meta_km ? K.ok : K.err }} /></div>
+        </div>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}><span>R$/hora</span><b style={{ color: mes.r_hr >= cfg.meta_hora ? K.ok : K.err }}>{fmtR(mes.r_hr)}</b></div>
+          <div style={{ height: 2, background: K.border }}><div style={{ height: "100%", width: Math.min(100, (mes.r_hr / cfg.meta_hora) * 60) + "%", background: mes.r_hr >= cfg.meta_hora ? K.ok : K.err }} /></div>
+        </div>
+      </Card>
+      <Card style={{ marginBottom: 10 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Custos fixos</p>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Parcela do carro</span><b style={{ color: K.text }}>{fmtR(cfg.parcela)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>IPVA (proporcional)</span><b style={{ color: K.text }}>{fmtR(cfg.ipva / 12)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Seguro (proporcional)</span><b style={{ color: K.text }}>{fmtR(cfg.seguro / 12)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, paddingTop: 8, color: K.err }}><span>Total fixo</span><span>{fmtR(mes.fixo)}</span></div>
+      </Card>
+      <Card style={{ marginBottom: 10 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: K.muted, textTransform: "uppercase", margin: "16px 0 8px" }}>Custos variaveis</p>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Combustivel</span><b style={{ color: K.text }}>{fmtR(mes.comb_total)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Revisao e manutencao</span><b style={{ color: K.text }}>{fmtR(mes.rev_t)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Pneu</span><b style={{ color: K.text }}>{fmtR(mes.pneu_t)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid " + K.sep }}><span style={{ color: K.muted }}>Reserva emergencia</span><b style={{ color: K.text }}>{fmtR(mes.emer_t)}</b></div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, paddingTop: 8, color: K.err }}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div>
+      </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+        {[["Viagens/dia", mes.dias > 0 ? fmt(mes.viagens / mes.dias, 1) : "--"], ["Horas/dia", mes.dias > 0 ? fmtHora(mes.hrs_total / mes.dias) : "--"], ["Viagens/hora", mes.hrs_total > 0 ? fmt(mes.viagens / mes.hrs_total, 2) : "--"], ["% comb/bruto", mes.bruto > 0 ? fmt(mes.comb_total / mes.bruto * 100, 1) + "%" : "--"]].map(([l, v]) => (
+          <Card key={l} style={{ padding: 10 }}>
+            <div style={{ fontSize: 10, color: K.muted, marginBottom: 2 }}>{l}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: K.text }}>{v}</div>
+          </Card>
+        ))}
+      </div>
+      <div style={{ background: K.card, borderRadius: 2, padding: 14, border: "1px solid " + K.border }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: K.text }}>Analise do ciclo -- IA</span>
+          <button onClick={pedirIA} disabled={loadingAI} style={{ padding: "5px 10px", fontSize: 11, background: K.text, color: K.bg, border: "none", borderRadius: 1, cursor: "pointer", opacity: loadingAI ? 0.5 : 1 }}>{loadingAI ? "Analisando..." : "Analisar"}</button>
+        </div>
+        {aiMsg ? <p style={{ fontSize: 12, color: K.muted, lineHeight: 1.8 }}>{aiMsg}</p>
+          : <p style={{ fontSize: 12, color: K.muted, fontStyle: "italic" }}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}
+      </div>
+    </div>
+  );
+}
+
+function TelaAdmin({ onSair }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos");
+  const [selecionado, setSelecionado] = useState(null);
+  const PRECO = 14.90;
+
+  useEffect(() => {
+    sb.from("usuarios_controle").select("*").order("data_cadastro", { ascending: false })
+      .then(({ data }) => { if (data) setUsuarios(data); setLoading(false); });
+  }, []);
+
+  const salvarUsuario = async (u) => {
+    const venc = u.vitalicio ? null : (u.vencimento || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10));
+    const upd = { ativo: u.ativo, plano: u.plano || "gratuito", vitalicio: !!u.vitalicio, vencimento: venc, observacoes: u.observacoes || "" };
+    await sb.from("usuarios_controle").update(upd).eq("id", u.id);
+    setUsuarios(p => p.map(x => x.id === u.id ? { ...x, ...upd } : x));
+    setSelecionado(null);
+    alert("Salvo!");
+  };
+
+  const naoAdmin = usuarios.filter(u => !u.admin);
+  const pagantes = naoAdmin.filter(u => u.plano === "pago" && u.ativo && !u.vitalicio);
+  const vitaliciosN = naoAdmin.filter(u => u.vitalicio);
+  const pendentes = naoAdmin.filter(u => !u.ativo);
+  const hoje7 = new Date(); hoje7.setDate(hoje7.getDate() + 7);
+  const vencendo = naoAdmin.filter(u => {
+    if (!u.vencimento || u.vitalicio) return false;
+    const v = new Date(u.vencimento + "T12:00:00");
+    return v >= new Date() && v <= hoje7;
+  });
+
+  const filtrados = naoAdmin.filter(u => {
+    const mb = (u.email || "").toLowerCase().includes(busca.toLowerCase()) || (u.nome || "").toLowerCase().includes(busca.toLowerCase());
+    const mf = filtro === "todos"
+      || (filtro === "pendentes" && !u.ativo)
+      || (filtro === "pagantes" && u.plano === "pago" && !u.vitalicio && u.ativo)
+      || (filtro === "vitalicio" && u.vitalicio)
+      || (filtro === "gratuito" && u.plano === "gratuito" && !u.vitalicio && u.ativo);
+    return mb && mf;
+  });
+
+  const PlanoTag = ({ u }) => {
+    if (u.vitalicio) return <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#7B2FBE", color: "#fff", fontWeight: 700 }}>Vitalicio</span>;
+    if (u.plano === "pago") return <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#1565C0", color: "#fff", fontWeight: 700 }}>Pago</span>;
+    return <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#333", color: "#AAA", fontWeight: 700 }}>Gratuito</span>;
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 20px", background: "#111" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <p style={{ fontSize: 11, color: "#555", fontFamily: "Arial,sans-serif" }}>Painel de controle</p>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#FFF" }}>Admin</h2>
+        </div>
+        <button onClick={onSair} style={{ fontSize: 12, color: "#AAA", background: "none", border: "1px solid #444", borderRadius: 4, padding: "6px 12px", cursor: "pointer" }}>Voltar</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+        <div style={{ background: "#1B4332", border: "1px solid #2D6A4F", borderRadius: 6, padding: 12 }}>
+          <p style={{ fontSize: 9, color: "#69DB7C", fontWeight: 700, letterSpacing: 1, fontFamily: "Arial,sans-serif" }}>RECEITA/MES</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: "#69DB7C" }}>{fmtR(pagantes.length * PRECO)}</p>
+          <p style={{ fontSize: 10, color: "#52B788", fontFamily: "Arial,sans-serif" }}>{pagantes.length} pagantes x {fmtR(PRECO)}</p>
+        </div>
+        <div style={{ background: "#222", borderRadius: 6, padding: 12 }}>
+          <p style={{ fontSize: 9, color: "#AAA", fontWeight: 700, letterSpacing: 1, fontFamily: "Arial,sans-serif" }}>TOTAL USUARIOS</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: "#FFF" }}>{naoAdmin.length}</p>
+          <p style={{ fontSize: 10, color: "#666", fontFamily: "Arial,sans-serif" }}>{naoAdmin.filter(u => u.plano === "gratuito" && !u.vitalicio).length} gratuitos / {vitaliciosN.length} vitalícios</p>
+        </div>
+        <div style={{ background: "#222", borderRadius: 6, padding: 12 }}>
+          <p style={{ fontSize: 9, color: "#AAA", fontWeight: 700, letterSpacing: 1, fontFamily: "Arial,sans-serif" }}>PENDENTES</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: pendentes.length > 0 ? "#FF6B6B" : "#FFF" }}>{pendentes.length}</p>
+          <p style={{ fontSize: 10, color: "#666", fontFamily: "Arial,sans-serif" }}>aguardando ativacao</p>
+        </div>
+        <div style={{ background: "#222", borderRadius: 6, padding: 12 }}>
+          <p style={{ fontSize: 9, color: "#AAA", fontWeight: 700, letterSpacing: 1, fontFamily: "Arial,sans-serif" }}>VENCENDO EM 7D</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: vencendo.length > 0 ? "#FFD43B" : "#FFF" }}>{vencendo.length}</p>
+          <p style={{ fontSize: 10, color: "#666", fontFamily: "Arial,sans-serif" }}>usuarios</p>
+        </div>
+      </div>
+      <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail"
+        style={{ width: "100%", border: "1px solid #333", borderRadius: 6, padding: "10px 12px", fontSize: 13, background: "#222", color: "#FFF", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
+        {[["todos", "Todos " + naoAdmin.length], ["pendentes", "Pendentes " + pendentes.length], ["pagantes", "Pagantes " + pagantes.length], ["vitalicio", "Vitalicio " + vitaliciosN.length], ["gratuito", "Gratuito"]].map(([v, l]) => (
+          <button key={v} onClick={() => setFiltro(v)}
+            style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid #333", background: filtro === v ? "#FFF" : "#222", color: filtro === v ? "#111" : "#AAA", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", fontWeight: filtro === v ? 700 : 400 }}>{l}</button>
+        ))}
+      </div>
+      <p style={{ fontSize: 11, color: "#444", marginBottom: 10, fontFamily: "Arial,sans-serif" }}>{filtrados.length} usuarios encontrados</p>
+      {loading && <p style={{ textAlign: "center", color: "#AAA", padding: 20 }}>Carregando...</p>}
+      {filtrados.map(u => (
+        <div key={u.id} onClick={() => setSelecionado({ ...u })}
+          style={{ background: "#1A1A1A", border: "1px solid #2A2A2A", borderRadius: 8, padding: 12, marginBottom: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#333", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#FFF", flexShrink: 0 }}>
+              {(u.nome || u.email || "?")[0].toUpperCase()}
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#FFF" }}>{u.nome || "Sem nome"}</p>
+              <p style={{ fontSize: 10, color: "#555", fontFamily: "Arial,sans-serif" }}>{u.email}</p>
+              {u.telefone && <p style={{ fontSize: 10, color: "#555", fontFamily: "Arial,sans-serif" }}>{u.telefone}</p>}
+              {u.vencimento && !u.vitalicio && <p style={{ fontSize: 9, color: vencendo.find(x => x.id === u.id) ? "#FFD43B" : "#555", fontFamily: "Arial,sans-serif" }}>Vence: {dataFmt(u.vencimento)}</p>}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+            <PlanoTag u={u} />
+            <span style={{ fontSize: 9, color: u.ativo ? "#69DB7C" : "#FF6B6B", fontFamily: "Arial,sans-serif" }}>{u.ativo ? "Ativo" : "Bloqueado"}</span>
+            {u.telefone && (
+              <a href={"https://wa.me/55" + u.telefone.replace(/\D/g, "") + "?text=" + encodeURIComponent("Ola " + (u.nome ? u.nome.split(" ")[0] : "") + "! Tudo bem?\n\nVi que voce criou uma conta no *Por km* e queria te apresentar o app pessoalmente.\n\nO *Por km* foi criado por um motorista com mais de 20 anos de experiencia em transporte, para te ajudar a saber exatamente quanto voce lucra por km e por hora rodados.\n\nCom ele voce:\n✅ Registra seus turnos e acompanha R$/km e R$/hora em tempo real\n✅ Ve o lucro real descontando combustivel, pneu, parcela e revisao\n✅ Compara semanas e descobre seus melhores horarios\n✅ Tem analise de IA do seu dia e do seu ciclo\n\nA assinatura e so *R$ 14,90/mes* — menos de R$ 0,50 por dia.\n\nPosso te liberar o acesso agora. Quer experimentar? ")}
+                target="_blank"
+                onClick={e => e.stopPropagation()}
+                style={{ display: "flex", alignItems: "center", gap: 4, background: "#25D366", color: "#FFF", padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                WhatsApp
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+      {selecionado && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <div style={{ background: "#1A1A1A", borderRadius: "16px 16px 0 0", padding: 20, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: "#FFF" }}>{selecionado.nome || "Sem nome"}</p>
+                <p style={{ fontSize: 11, color: "#555", fontFamily: "Arial,sans-serif" }}>{selecionado.email}</p>
+                <p style={{ fontSize: 10, color: "#444", fontFamily: "Arial,sans-serif" }}>Cadastro: {selecionado.data_cadastro ? new Date(selecionado.data_cadastro).toLocaleDateString("pt-BR") : "--"}</p>
+              </div>
+              <button onClick={() => setSelecionado(null)} style={{ background: "none", border: "none", color: "#AAA", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>x</button>
+            </div>
+            <div style={{ background: "#222", borderRadius: 10, padding: 14, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#FFF" }}>Acesso Vitalicio</p>
+                  <p style={{ fontSize: 11, color: "#555", fontFamily: "Arial,sans-serif" }}>Nunca expira</p>
+                </div>
+                <div onClick={() => setSelecionado(p => ({ ...p, vitalicio: !p.vitalicio, plano: !p.vitalicio ? "pago" : p.plano }))}
+                  style={{ width: 48, height: 26, borderRadius: 13, background: selecionado.vitalicio ? "#7B2FBE" : "#333", position: "relative", cursor: "pointer", transition: "background .2s", flexShrink: 0 }}>
+                  <div style={{ position: "absolute", top: 3, left: selecionado.vitalicio ? 22 : 3, width: 20, height: 20, borderRadius: "50%", background: "#FFF", transition: "left .2s" }} />
+                </div>
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: "#555", marginBottom: 6, fontFamily: "Arial,sans-serif" }}>Plano</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+              {["gratuito", "pago"].map(p => (
+                <button key={p} onClick={() => setSelecionado(x => ({ ...x, plano: p }))}
+                  style={{ padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12,
+                    background: selecionado.plano === p && !selecionado.vitalicio ? "#1565C0" : "#333",
+                    color: selecionado.plano === p && !selecionado.vitalicio ? "#FFF" : "#AAA" }}>
+                  {p === "gratuito" ? "Gratuito" : "Pago"}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: "#555", marginBottom: 6, fontFamily: "Arial,sans-serif" }}>Status</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+              <button onClick={() => setSelecionado(p => ({ ...p, ativo: true }))}
+                style={{ padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12, background: selecionado.ativo ? "#1B4332" : "#333", color: selecionado.ativo ? "#69DB7C" : "#AAA" }}>
+                Ativo
+              </button>
+              <button onClick={() => setSelecionado(p => ({ ...p, ativo: false }))}
+                style={{ padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12, background: !selecionado.ativo ? "#7B1010" : "#333", color: !selecionado.ativo ? "#FF6B6B" : "#AAA" }}>
+                Bloqueado
+              </button>
+            </div>
+            {!selecionado.vitalicio && <>
+              <p style={{ fontSize: 11, color: "#555", marginBottom: 6, fontFamily: "Arial,sans-serif" }}>Vencimento</p>
+              <input type="date" value={selecionado.vencimento || ""} onChange={e => setSelecionado(p => ({ ...p, vencimento: e.target.value }))}
+                style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: 8, padding: "10px 12px", fontSize: 14, color: "#FFF", outline: "none", boxSizing: "border-box", marginBottom: 4 }} />
+              <p style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "Arial,sans-serif" }}>Se nao informar, sera 30 dias a partir de hoje</p>
+            </>}
+            <p style={{ fontSize: 11, color: "#555", marginBottom: 6, fontFamily: "Arial,sans-serif" }}>Observacoes</p>
+            <input value={selecionado.observacoes || ""} onChange={e => setSelecionado(p => ({ ...p, observacoes: e.target.value }))}
+              placeholder="Ex: Pagou em 10/07 via PIX"
+              style={{ width: "100%", background: "#222", border: "1px solid #333", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#FFF", outline: "none", boxSizing: "border-box", marginBottom: 16 }} />
+            <button onClick={() => salvarUsuario(selecionado)}
+              style={{ width: "100%", padding: 14, borderRadius: 8, border: "none", background: "#69DB7C", color: "#111", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+              Salvar alteracoes
+            </button>
+            <button onClick={async () => {
+              if (!window.confirm("Excluir usuario " + selecionado.email + "? Esta acao nao pode ser desfeita.")) return;
+              await sb.from("usuarios_controle").delete().eq("id", selecionado.id);
+              setUsuarios(p => p.filter(x => x.id !== selecionado.id));
+              setSelecionado(null);
+              alert("Usuario excluido!");
+            }} style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #7B1010", background: "transparent", color: "#FF6B6B", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Excluir cadastro
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [nav, setNav] = useState("dashboard");
+  const [cfg, setCfg] = useState(CFG0);
+  const [turnos, setTurnos] = useState([]);
+  const [abast, setAbast] = useState([]);
+  const [controle, setControle] = useState(null);
+  const [telaAdmin, setTelaAdmin] = useState(false);
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+
+  const carregarDados = async (uid) => {
+    setLoading(true);
+    try {
+      const { data: ctrl } = await sb.from("usuarios_controle").select("*").eq("user_id", uid).single();
+      setControle(ctrl || null);
+    } catch (e) { }
+    try {
+      const { data: c } = await sb.from("configuracoes").select("*").eq("user_id", uid).single();
+      if (c) setCfg(c);
+    } catch (e) { }
+    try {
+      const { data: t } = await sb.from("turnos").select("*").eq("user_id", uid).order("data", { ascending: false }).order("num", { ascending: false });
+      if (t) {
+        setTurnos(t);
+        const turnoAberto = t.find(x => x.data === hoje() && x.km_i && (!x.km_f || !x.bruto));
+        if (turnoAberto) setNav("diario");
+      }
+    } catch (e) { }
+    try {
+      const { data: a } = await sb.from("abastecimentos").select("*").eq("user_id", uid).order("data", { ascending: false });
+      if (a) setAbast(a);
+    } catch (e) { }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 6000);
+    sb.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timer);
+      setSession(session);
+      if (session) carregarDados(session.user.id);
+      else setLoading(false);
+    }).catch(() => { clearTimeout(timer); setLoading(false); });
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_, s) => { setSession(s); if (s) carregarDados(s.user.id); });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const sair = async () => {
+    await sb.auth.signOut();
+    setSession(null);
+    setTurnos([]);
+    setAbast([]);
+    setCfg(CFG0);
+    setControle(null);
+    setTelaAdmin(false);
+  };
+
+  const navItems = [
+    { id: "dashboard", icon: "🏠", label: "Dashboard" },
+    { id: "diario", icon: "📋", label: "Diario" },
+    { id: "combustivel", icon: "⛽", label: "Combust." },
+    { id: "comparativo", icon: "📊", label: "Comparar" },
+    { id: "historico", icon: "📁", label: "Historico" },
+    { id: "config", icon: "⚙", label: "Config." }
+  ];
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12, background: K.bg }}>
+      <div style={{ fontSize: 32, fontFamily: "Arial" }}>&#128663;</div>
+      <p style={{ color: K.muted, fontSize: 14 }}>Carregando...</p>
+    </div>
+  );
+
+  if (!session) return (
+    <div style={{ maxWidth: 480, margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", background: K.bg, fontFamily: "Georgia,serif" }}>
+      <TelaAuth onLogado={() => sb.auth.getSession().then(({ data: { session } }) => { if (session) carregarDados(session.user.id); })} />
+    </div>
+  );
+
+  if (telaAdmin && isAdmin) return (
+    <div style={{ maxWidth: 480, margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", background: "#111", fontFamily: "Georgia,serif" }}>
+      <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid #222", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: "#FFF", margin: 0 }}>Por km Admin</h1>
+        <button onClick={sair} style={{ background: "none", border: "none", color: "#AAA", fontSize: 12, cursor: "pointer" }}>Sair</button>
+      </div>
+      <TelaAdmin onSair={() => setTelaAdmin(false)} />
+    </div>
+  );
+
+  if (controle && !controle.ativo && !isAdmin) return (
+    <div style={{ maxWidth: 480, margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", background: K.bg, fontFamily: "Georgia,serif" }}>
+      <TelaAguardando onSair={sair} />
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 480, margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", background: K.bg, fontFamily: "Georgia,serif" }}>
+      <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid " + K.border, background: K.card, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: K.text, margin: 0, fontFamily: "Georgia,serif" }}>Por km <span style={{ fontSize: 10, color: K.muted, fontWeight: 400 }}>v1.5</span></h1>
+        <span style={{ fontSize: 12, color: K.muted }}>{navItems.find(n => n.id === nav)?.label}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {isAdmin && <button onClick={() => setTelaAdmin(true)} style={{ fontSize: 11, background: K.text, color: K.bg, border: "none", borderRadius: 2, padding: "4px 8px", cursor: "pointer" }}>Admin</button>}
+          <button onClick={sair} style={{ background: "none", border: "none", color: K.muted, fontSize: 12, cursor: "pointer" }}>Sair</button>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {nav === "dashboard" && <TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} controle={controle} />}
+        {nav === "diario" && <TelaDiario turnos={turnos} cfg={cfg} userId={session.user.id} onAdd={t => setTurnos(p => [t, ...p])} onUpdate={t => setTurnos(p => p.map(x => x.id === t.id ? t : x))} onDelete={id => setTurnos(p => p.filter(x => x.id !== id))} controle={controle} />}
+        {nav === "combustivel" && <TelaCombustivel abastecimentos={abast} cfg={cfg} userId={session.user.id} onAdd={a => setAbast(p => [a, ...p])} onUpdate={a => setAbast(p => p.map(x => x.id === a.id ? a : x))} onDelete={id => setAbast(p => p.filter(x => x.id !== id))} />}
+        {nav === "comparativo" && <TelaComparativo turnos={turnos} controle={controle} />}
+        {nav === "historico" && <TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} controle={controle} />}
+        {nav === "config" && <TelaConfig cfg={cfg} userId={session.user.id} onSalvo={setCfg} />}
+      </div>
+      <div style={{ display: "flex", borderTop: "1px solid " + K.border, background: K.card, flexShrink: 0, overflowX: "auto" }}>
+        {navItems.map(n => (
+          <button key={n.id} onClick={() => setNav(n.id)}
+            style={{ flex: 1, minWidth: 52, padding: "8px 2px 6px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <span style={{ fontSize: 18, color: nav === n.id ? K.text : K.muted }}>{n.icon}</span>
+            <span style={{ fontSize: 8, color: nav === n.id ? K.text : K.muted, fontFamily: "Arial,sans-serif", fontWeight: nav === n.id ? 700 : 400, whiteSpace: "nowrap" }}>{n.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
