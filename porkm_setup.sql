@@ -59,6 +59,7 @@ create table if not exists abastecimentos (
   km_rod numeric not null,
   litros numeric not null,
   preco numeric not null,
+  hodometro numeric,
   created_at timestamp with time zone default now()
 );
 
@@ -117,23 +118,37 @@ alter table abastecimentos enable row level security;
 alter table custos_ciclo enable row level security;
 alter table usuarios_controle enable row level security;
 
-create policy "usuario ve propria config" on configuracoes
-  for all using (auth.uid() = user_id);
-
-create policy "usuario ve proprios turnos" on turnos
-  for all using (auth.uid() = user_id);
-
-create policy "usuario ve proprios abastecimentos" on abastecimentos
-  for all using (auth.uid() = user_id);
-
-create policy "usuario ve proprios custos" on custos_ciclo
-  for all using (auth.uid() = user_id);
-
 -- Admin conferido no servidor
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce(auth.jwt() ->> 'email', '') = 'jefersondalci@gmail.com';
 $$;
+
+-- Conta liberada = admin, sem linha de controle, ou ativa e dentro do vencimento (vitalício nunca vence)
+create or replace function public.conta_liberada() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_admin()
+      or not exists (select 1 from public.usuarios_controle where user_id = auth.uid())
+      or exists (
+        select 1 from public.usuarios_controle
+         where user_id = auth.uid()
+           and ativo is true
+           and (vitalicio is true or vencimento is null
+                or vencimento >= (now() at time zone 'America/Sao_Paulo')::date)
+      );
+$$;
+
+create policy "proprios dados com conta liberada" on configuracoes for all to authenticated
+  using (auth.uid() = user_id and public.conta_liberada()) with check (auth.uid() = user_id and public.conta_liberada());
+
+create policy "proprios dados com conta liberada" on turnos for all to authenticated
+  using (auth.uid() = user_id and public.conta_liberada()) with check (auth.uid() = user_id and public.conta_liberada());
+
+create policy "proprios dados com conta liberada" on abastecimentos for all to authenticated
+  using (auth.uid() = user_id and public.conta_liberada()) with check (auth.uid() = user_id and public.conta_liberada());
+
+create policy "proprios dados com conta liberada" on custos_ciclo for all to authenticated
+  using (auth.uid() = user_id and public.conta_liberada()) with check (auth.uid() = user_id and public.conta_liberada());
 
 create policy "controle: ve a propria linha ou admin" on usuarios_controle
   for select to authenticated using (user_id = auth.uid() or public.is_admin());
