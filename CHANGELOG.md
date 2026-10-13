@@ -1,5 +1,17 @@
 # Changelog — Por km
 
+## v1.7 — 2026-10-13
+
+### Novo
+- **Funciona sem internet**: o app abre mesmo sem sinal, mostrando seus dados da última vez que conectou.
+- **Registra sem sinal**: abrir/fechar turno, editar, excluir e abastecimentos feitos sem internet ficam guardados no celular e são enviados sozinhos quando o sinal volta. Uma faixa no topo mostra "Sem internet" e quantos registros aguardam envio.
+- **Instalar na tela inicial**: no Android (Chrome → menu ⋮ → "Instalar app") ou no iPhone (Safari → Compartilhar → "Adicionar à Tela de Início"), o Por km abre como um aplicativo, com ícone próprio e sem a barra do navegador.
+- **Abre mais rápido**: as bibliotecas ficam guardadas no celular depois da primeira abertura.
+
+### Observações
+- Os Ajustes só podem ser salvos com internet.
+- Ao tocar em "Sair" com registros ainda não enviados, o app avisa antes, porque sair apaga a cópia do celular.
+
 ## v1.6 — 2026-10-13
 
 ### Novo
