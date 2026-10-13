@@ -8,15 +8,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#F5F2EB" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)"/>
-<title>Por km v1.6</title>
+<title>Por km v1.7</title>
 <script>
 // tema escolhido na Config (auto/claro/escuro) aplicado antes de desenhar, sem piscar
 try{var t=localStorage.getItem("porkm_tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t);}catch(e){}
 </script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" href="icone.svg" type="image/svg+xml"/>
+<link rel="apple-touch-icon" href="icone-180.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Por km"/>
+<!-- versoes fixas: atualizacao das bibliotecas nao quebra o app e o cache offline fica estavel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 /* Paleta "Kindle": bege no claro, grafite no escuro (para dirigir a noite sem ofuscar) */
 :root{
@@ -55,6 +61,74 @@ const sb=window.supabase.createClient(
 const ADMIN_EMAIL="jefersondalci@gmail.com";
 // WhatsApp do administrador para ativar/renovar (so numeros, com 55 + DDD). Vazio = sem botao.
 const WHATSAPP_ADMIN="";
+
+// -- offline ----------------------------------------------------
+// Copia local dos dados (o app abre sem internet) e fila das gravacoes feitas sem sinal,
+// enviada sozinha quando a conexao volta.
+const LOCAL={
+  ler(k,padrao){try{const v=localStorage.getItem(k);return v?JSON.parse(v):padrao;}catch(e){return padrao;}},
+  gravar(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},
+  apagar(k){try{localStorage.removeItem(k);}catch(e){}}
+};
+const chaveCache=(uid)=>"porkm_dados_"+uid;
+const CHAVE_FILA="porkm_fila";
+function novoId(){
+  if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
+  return"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16);});
+}
+// sem sinal x erro de verdade do banco (este nao entra na fila)
+function ehFalhaDeRede(error){
+  if(!navigator.onLine)return true;
+  return/Failed to fetch|NetworkError|Load failed|network request failed|fetch failed/i.test(String(error?.message||error||""));
+}
+let _avisarFila=null; // o App mostra quantos registros aguardam envio
+function filaPendentes(){return LOCAL.ler(CHAVE_FILA,[]);}
+function salvarFila(f){LOCAL.gravar(CHAVE_FILA,f);if(_avisarFila)_avisarFila(f.length);}
+
+// Grava no Supabase; sem sinal, guarda na fila e devolve a linha como ela vai ficar.
+// op: "insert" (dados ja com id) | "update" | "delete"; atual = linha antes da mudanca
+async function gravarDados(tabela,op,id,dados,atual){
+  if(navigator.onLine){
+    try{
+      const r=op==="insert"?await sb.from(tabela).insert(dados).select().single()
+        :op==="update"?await sb.from(tabela).update(dados).eq("id",id).select().single()
+        :await sb.from(tabela).delete().eq("id",id);
+      if(!r.error||!ehFalhaDeRede(r.error))return r;
+    }catch(e){if(!ehFalhaDeRede(e))return{data:null,error:e};}
+  }
+  const fila=filaPendentes();
+  // registro criado sem sinal e ainda na fila: a mudanca entra nele mesmo
+  const i=fila.findIndex(x=>x.tabela===tabela&&x.id===id&&x.op==="insert");
+  if(i>=0&&op==="update")fila[i].dados={...fila[i].dados,...dados};
+  else if(i>=0&&op==="delete")fila.splice(i,1);
+  else fila.push({tabela,op,id,dados,quando:Date.now()});
+  salvarFila(fila);
+  avisar("Sem internet: salvo no celular. Envia sozinho quando o sinal voltar.");
+  return{data:op==="delete"?null:{...(atual||{}),...dados,id},error:null,offline:true};
+}
+// Envia a fila na ordem. Para no primeiro erro de rede; erro do banco descarta o item e avisa.
+let _sincronizando=false;
+async function sincronizarFila(){
+  if(_sincronizando||!navigator.onLine)return 0;
+  _sincronizando=true;let enviados=0;
+  try{
+    while(filaPendentes().length){
+      const it=filaPendentes()[0];
+      let r;
+      try{
+        // upsert: se o envio anterior chegou mas a resposta se perdeu, nao duplica
+        if(it.op==="insert")r=await sb.from(it.tabela).upsert(it.dados);
+        else if(it.op==="update")r=await sb.from(it.tabela).update(it.dados).eq("id",it.id);
+        else r=await sb.from(it.tabela).delete().eq("id",it.id);
+      }catch(e){r={error:e};}
+      if(r.error&&ehFalhaDeRede(r.error))break;
+      if(r.error)avisar("Um registro feito sem internet não pôde ser enviado: "+r.error.message);
+      else enviados++;
+      salvarFila(filaPendentes().slice(1));
+    }
+  }finally{_sincronizando=false;}
+  return enviados;
+}
 
 // -- utils ------------------------------------------------------
 function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
@@ -292,7 +366,7 @@ function TelaAuth({onLogado}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}><Icone nome="carro" tam={36} cor={K.text}/></div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.6</p>
+        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.7</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<>
@@ -389,6 +463,7 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
   },[userId,ca.ini]);
 
   const salvar=async()=>{
+    if(!navigator.onLine)return avisar("Sem internet: os ajustes só podem ser salvos com sinal.");
     setLoading(true);
     // Salva metas e ciclo na configuracoes (globais)
     const dadosGlobais={meta_km:parseN(form.meta_km),meta_hora:parseN(form.meta_hora),dia_ciclo:parseN(form.dia_ciclo)||1,usar_media_comb:!!form.usar_media_comb};
@@ -641,7 +716,8 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
 
   const abrirTurno=async(form)=>{
     setLoading(true);
-    const{data,error}=await sb.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
+    const id=novoId();
+    const{data,error}=await gravarDados("turnos","insert",id,{id,user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0});
     if(!error){onAdd(data);setModo(null);}else avisar("Erro: "+error.message);
     setLoading(false);
   };
@@ -651,21 +727,21 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
       uber_bruto:parseN(form.uber_bruto)||0,uber_viagens:parseN(form.uber_viagens)||0,uber_bonus:parseN(form.uber_bonus)||0,
       nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
       part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};
-    const{data,error}=await sb.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
+    const{data,error}=await gravarDados("turnos","update",turnoAberto.id,upd,turnoAberto);
     if(!error){onUpdate(data);setModo(null);}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async(upd)=>{
     setLoading(true);
-    const{data,error}=await sb.from("turnos").update(upd).eq("id",editando.id).select().single();
-    if(!error){onUpdate(data);setEditando(null);avisar("Turno salvo.");}else avisar("Erro: "+error.message);
+    const{data,error,offline}=await gravarDados("turnos","update",editando.id,upd,editando);
+    if(!error){onUpdate(data);setEditando(null);if(!offline)avisar("Turno salvo.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const excluir=async(t)=>{
     if(!window.confirm("Excluir o "+t.num+"º turno de "+dataFmt(t.data)+"? Não dá para desfazer."))return;
     setLoading(true);
-    const{error}=await sb.from("turnos").delete().eq("id",t.id);
-    if(!error){onDelete(t.id);setEditando(null);avisar("Turno excluído.");}else avisar("Erro: "+error.message);
+    const{error,offline}=await gravarDados("turnos","delete",t.id);
+    if(!error){onDelete(t.id);setEditando(null);if(!offline)avisar("Turno excluído.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const pedirIA=useCallback(async()=>{
@@ -894,8 +970,8 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
 
   const excluirAbast=async(a)=>{
     if(!window.confirm("Excluir o abastecimento de "+dataFmt(a.data)+"? Não dá para desfazer."))return;
-    const{error}=await sb.from("abastecimentos").delete().eq("id",a.id);
-    if(!error){onDelete(a.id);setEditando(null);avisar("Abastecimento excluído.");}else avisar("Erro: "+error.message);
+    const{error,offline}=await gravarDados("abastecimentos","delete",a.id);
+    if(!error){onDelete(a.id);setEditando(null);if(!offline)avisar("Abastecimento excluído.");}else avisar("Erro: "+error.message);
   };
   const montar=(f)=>({data:f.data,tipo:f.tipo,km_rod:parseN(f.km_rod),litros:parseN(f.litros),preco:parseN(f.preco),hodometro:parseN(f.hodometro)||null});
 
@@ -915,15 +991,16 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
   const salvar=async()=>{
     if(!form.km_rod||!form.litros||!form.preco)return avisar("Preencha todos os campos.");
     setLoading(true);
-    const{data,error}=await gravarAbast(d=>sb.from("abastecimentos").insert({user_id:userId,...d}).select().single(),montar(form));
-    if(!error){onAdd(data);setMostrar(false);setForm(VAZIO);avisar("Abastecimento salvo.");}
+    const id=novoId();
+    const{data,error,offline}=await gravarAbast(d=>gravarDados("abastecimentos","insert",id,{id,user_id:userId,...d}),montar(form));
+    if(!error){onAdd(data);setMostrar(false);setForm(VAZIO);if(!offline)avisar("Abastecimento salvo.");}
     else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async()=>{
     setLoading(true);
-    const{data,error}=await gravarAbast(d=>sb.from("abastecimentos").update(d).eq("id",editando.id).select().single(),montar(editando));
-    if(!error){onUpdate(data);setEditando(null);avisar("Abastecimento salvo.");}else avisar("Erro: "+error.message);
+    const{data,error,offline}=await gravarAbast(d=>gravarDados("abastecimentos","update",editando.id,d,editando),montar(editando));
+    if(!error){onUpdate(data);setEditando(null);if(!offline)avisar("Abastecimento salvo.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   return(
@@ -1550,8 +1627,24 @@ function App(){
   const[periodoFim,setPeriodoFim]=useState(calcCiclo(1).fim);
   const isAdmin=session?.user?.email===ADMIN_EMAIL;
 
+  const[online,setOnline]=useState(navigator.onLine),[pendentes,setPendentes]=useState(filaPendentes().length);
+  const[usandoCopia,setUsandoCopia]=useState(false); // dados vindos da copia do celular (sem sinal)
+
+  const aplicarCopia=(c)=>{
+    setControle(c.controle||null);
+    if(c.cfg){setCfg(c.cfg);const ca=calcCiclo(c.cfg.dia_ciclo||1);setPeriodoIni(ca.ini);setPeriodoFim(ca.fim);}
+    setTurnos(c.turnos||[]);setAbast(c.abast||[]);setCustosCiclos(c.custos||[]);
+    if((c.turnos||[]).find(turnoEstaAberto))setNav("diario");
+    setUsandoCopia(true);
+  };
+
   const carregarDados=async(uid)=>{
     setLoading(true);
+    const copia=LOCAL.ler(chaveCache(uid),null);
+    // sem sinal: abre com a copia do celular (inclui o que foi registrado offline)
+    if(!navigator.onLine&&copia){aplicarCopia(copia);setLoading(false);return;}
+    await sincronizarFila();
+    setUsandoCopia(false);
     let meta={};
     try{const{data:{user}}=await sb.auth.getUser();meta=user?.user_metadata||{};}catch(e){}
     try{
@@ -1580,7 +1673,9 @@ function App(){
       }
     }catch(e){}
     try{
-      const{data:t}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});
+      const{data:t,error:et}=await sb.from("turnos").select("*").eq("user_id",uid).order("data",{ascending:false}).order("num",{ascending:false});
+      // a rede caiu no meio do carregamento: usa a copia
+      if(et&&ehFalhaDeRede(et)&&copia){aplicarCopia(copia);setLoading(false);return;}
       if(t){
         setTurnos(t);
         // Se tiver turno aberto hoje, navega para o diario
@@ -1603,7 +1698,33 @@ function App(){
     return()=>subscription.unsubscribe();
   },[]);
 
-  const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
+  // sinal voltou: envia a fila e recarrega do servidor
+  useEffect(()=>{
+    _avisarFila=setPendentes;
+    const voltou=async()=>{
+      setOnline(true);
+      const n=await sincronizarFila();
+      if(n>0)avisar(n===1?"1 registro feito sem internet foi enviado.":n+" registros feitos sem internet foram enviados.");
+      const{data:{session:s}}=await sb.auth.getSession();
+      if(s)carregarDados(s.user.id);
+    };
+    const caiu=()=>setOnline(false);
+    window.addEventListener("online",voltou);window.addEventListener("offline",caiu);
+    return()=>{_avisarFila=null;window.removeEventListener("online",voltou);window.removeEventListener("offline",caiu);};
+  },[]);
+
+  // guarda a copia dos dados no celular sempre que mudam (inclusive o que foi feito offline)
+  useEffect(()=>{
+    if(session&&!loading)LOCAL.gravar(chaveCache(session.user.id),{turnos,abast,cfg,custos:custosCiclos,controle,quando:Date.now()});
+  },[turnos,abast,cfg,custosCiclos,controle,session,loading]);
+
+  const sair=async()=>{
+    const n=filaPendentes().length;
+    if(n>0&&!window.confirm(n+" registro(s) feitos sem internet ainda não foram enviados. Saindo agora, eles serão perdidos. Sair mesmo assim?"))return;
+    if(session)LOCAL.apagar(chaveCache(session.user.id));
+    salvarFila([]);
+    await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);
+  };
 
   const navItems=[
     {id:"dashboard",icon:"inicio",label:"Início"},
@@ -1649,13 +1770,19 @@ function App(){
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
       <AvisosGlobais/>
       <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.6</span></h1>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.7</span></h1>
         <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
           <button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button>
         </div>
       </div>
+      {(!online||pendentes>0||usandoCopia)&&(
+        <div role="status" style={{padding:"8px 16px",background:K.text,color:K.bg,fontSize:13,lineHeight:1.4,flexShrink:0}}>
+          {!online?"Sem internet · pode registrar normalmente, fica salvo no celular":usandoCopia?"Mostrando a cópia do celular · conectando...":""}
+          {pendentes>0&&<b>{(!online||usandoCopia)?" · ":""}{pendentes===1?"1 registro aguardando envio":pendentes+" registros aguardando envio"}</b>}
+        </div>
+      )}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {nav==="dashboard"&&<TelaDashboard turnos={turnos} abastecimentos={abast} cfg={cfg} periodoIni={periodoIni} periodoFim={periodoFim} setPeriodoIni={setPeriodoIni} setPeriodoFim={setPeriodoFim} custosCiclos={custosCiclos}/>}
         {nav==="diario"&&<TelaDiario turnos={turnos} cfg={cfg} custosCiclos={custosCiclos} userId={session.user.id} onAdd={t=>setTurnos(p=>[t,...p])} onUpdate={t=>setTurnos(p=>p.map(x=>x.id===t.id?t:x))} onDelete={id=>setTurnos(p=>p.filter(x=>x.id!==id))}/>}
@@ -1678,6 +1805,12 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+// app instalavel e que abre sem internet (ver sw.js)
+if("serviceWorker" in navigator&&location.protocol!=="file:"){
+  const registrar=()=>navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if(document.readyState==="complete")registrar();else window.addEventListener("load",registrar);
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1A1A1A"/>
+  <g fill="none" stroke="#F5F2EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="translate(128 118) scale(10.67)">
+    <path d="M3 13l2-6h14l2 6v5H3z"/><path d="M7 18v2M17 18v2"/>
+  </g>
+  <text x="256" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="96" font-weight="700" fill="#F5F2EB">Por km</text>
+</svg>
