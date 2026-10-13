@@ -1,5 +1,23 @@
 # Changelog — Por km
 
+## v1.8 — 2026-10-13
+
+### Novo Início
+- **Bloco "Hoje" no topo**: quanto sobrou hoje (bruto menos combustível, pneu, revisão, reserva e a parte do dia dos custos fixos), com ▲/▼ das metas de R$/km e R$/hora, e o botão de abrir ou fechar turno ali mesmo.
+- **"Ciclo até hoje"**: lucro até hoje com parcela, IPVA e seguro proporcionais aos dias que já passaram (o ciclo não começa mais no vermelho) e a estimativa de quanto sobra no fim do ciclo se mantiver o ritmo.
+- Custos, gráfico semanal e outros números ficam recolhidos e abrem com um toque.
+
+### Novo fechamento de turno
+- **Só os apps que você usa**: escolha em Ajustes → "Apps que uso". Os outros aparecem com "+ nome do app" se precisar.
+- Uma linha por app (bruto e viagens lado a lado); bônus fica em "+ bônus".
+- Resumo fixo embaixo, junto do botão, com km, horas, total e R$/km/R$/hora atualizando enquanto você digita.
+
+### Ajuste de conta
+- Custos fixos de períodos parciais agora são divididos pelos dias reais do ciclo (ex.: 13 dias de um ciclo de 31 = 13/31), em todas as telas.
+
+### Para ativar (uma vez)
+- Supabase → SQL Editor: rodar `supabase/2026-10-13_v1.8_apps.sql` para "Apps que uso" valer em qualquer celular (sem ele, a escolha fica só no celular).
+
 ## v1.7 — 2026-10-13
 
 ### Novo

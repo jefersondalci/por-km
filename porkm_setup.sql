@@ -22,6 +22,7 @@ create table if not exists configuracoes (
   preco_litro numeric default 4.89,
   dia_ciclo integer default 1,
   usar_media_comb boolean default false,
+  apps text[] default array['uber','99','part'],
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
