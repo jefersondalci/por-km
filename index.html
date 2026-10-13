@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#F5F2EB" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)"/>
-<title>Por km v1.8</title>
+<title>Por km v1.8.1</title>
 <script>
 // tema escolhido na Config (auto/claro/escuro) aplicado antes de desenhar, sem piscar
 try{var t=localStorage.getItem("porkm_tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t);}catch(e){}
@@ -382,7 +382,7 @@ function TelaAuth({onLogado}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}><Icone nome="carro" tam={36} cor={K.text}/></div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.8</p>
+        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.8.1</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<>
@@ -1320,6 +1320,25 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
 }
 
 // -- DASHBOARD -------------------------------------------------
+// botao "?" que mostra/esconde a explicacao de uma conta
+function BotaoExplica({aberto,onClick}){
+  return <button onClick={onClick} aria-expanded={aberto} aria-label="Como é calculado"
+    style={{width:28,height:28,borderRadius:"50%",border:"1px solid "+(aberto?K.text:K.border),background:aberto?K.text:"none",color:aberto?K.bg:K.muted,fontSize:14,fontWeight:700,cursor:"pointer",lineHeight:1,flexShrink:0}}>?</button>;
+}
+// caixa da explicacao: linhas [texto, valor] e notas embaixo
+function Explicacao({linhas,total,notas}){
+  return(
+    <div style={{background:K.bg,border:"1px solid "+K.border,borderRadius:2,padding:"10px 12px",display:"grid",gap:4,fontSize:13}}>
+      <b style={{fontSize:13,color:K.text,marginBottom:2}}>Como é calculado</b>
+      {linhas.map(([l,v],i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8}}><span style={{color:K.muted}}>{l}</span><span style={{color:K.text,whiteSpace:"nowrap"}}>{v}</span></div>
+      ))}
+      {total&&<div style={{display:"flex",justifyContent:"space-between",gap:8,borderTop:"1px solid "+K.border,paddingTop:4,fontWeight:700}}><span>{total[0]}</span><span style={{whiteSpace:"nowrap"}}>{total[1]}</span></div>}
+      {notas&&notas.map((n,i)=><p key={i} style={{color:K.muted,lineHeight:1.5,marginTop:4}}>{n}</p>)}
+    </div>
+  );
+}
+
 // bloco que abre/fecha com um toque (titulo + resumo a direita)
 function Recolhivel({titulo,resumo,children}){
   const[aberto,setAberto]=useState(false);
@@ -1412,14 +1431,25 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
   const fixoMensal=parseN(ccCiclo.parcela)+parseN(ccCiclo.ipva)/12+parseN(ccCiclo.seguro)/12;
   // projecao: o ritmo dos dias que passaram (bruto - custos por km) estendido ao ciclo todo, menos o fixo do mes
   const projecao=diaAtual>=3?(ate.bruto-ate.custos_var)/diaAtual*diasCiclo-fixoMensal:null;
+  const[explica,setExplica]=useState(null); // "hoje" | "ciclo": qual "?" esta aberto
+  const alternarExplica=(q)=>setExplica(e=>e===q?null:q);
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px",display:"flex",flexDirection:"column",gap:10}}>
       <Card style={{display:"grid",gap:10}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
           <span style={{fontSize:12,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.2}}>Hoje</span>
-          <span style={{fontSize:13,color:K.muted}}>{diaSemana(hj)}, {dataFmt(hj).slice(0,5)}</span>
+          <span style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:K.muted}}>{diaSemana(hj)}, {dataFmt(hj).slice(0,5)}
+            <BotaoExplica aberto={explica==="hoje"} onClick={()=>alternarExplica("hoje")}/></span>
         </div>
+        {explica==="hoje"&&<Explicacao
+          linhas={[["Bruto do dia (com bônus)",fmtR(dHoje.bruto)],
+            ["− Combustível",fmtR(dHoje.comb_total)],
+            ["− Pneu, revisão e reserva",fmtR(dHoje.pneu_t+dHoje.rev_t+dHoje.emer_t)],
+            ["− Parte do dia dos custos fixos",fmtR(dHoje.fixo)]]}
+          total={["= Líquido de hoje",fmtR(dHoje.lucro)]}
+          notas={["Custos fixos: parcela + IPVA ÷ 12 + seguro ÷ 12 = "+fmtR(fixoMensal)+" por mês, divididos pelos "+diasCiclo+" dias do ciclo ("+fmtR(fixoMensal/diasCiclo)+" por dia).",
+            "A divisão é pelos dias do calendário porque esses custos vencem mesmo nos dias de folga. As folgas entram no \"Ciclo até hoje\"."]}/>}
         {dHoje.dias>0?<>
           <div>
             <div style={{fontSize:32,fontWeight:700,lineHeight:1.1,color:dHoje.lucro>=0?K.ok:K.err}}>{fmtR(dHoje.lucro)}</div>
@@ -1438,8 +1468,16 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
       <Card style={{display:"grid",gap:8}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
           <span style={{fontSize:12,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.2}}>Ciclo até hoje</span>
-          <span style={{fontSize:13,color:K.muted}}>dia {diaAtual} de {diasCiclo}</span>
+          <span style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:K.muted}}>dia {diaAtual} de {diasCiclo}
+            <BotaoExplica aberto={explica==="ciclo"} onClick={()=>alternarExplica("ciclo")}/></span>
         </div>
+        {explica==="ciclo"&&<Explicacao
+          linhas={[["Bruto do ciclo até hoje",fmtR(ate.bruto)],
+            ["− Custos por km (combustível, pneu, revisão, reserva)",fmtR(ate.custos_var)],
+            ["− Custos fixos de "+diaAtual+" de "+diasCiclo+" dias",fmtR(ate.fixo)]]}
+          total={["= Lucro até hoje",fmtR(ate.lucro)]}
+          notas={["Os custos fixos contam todos os dias que já passaram, trabalhados ou não: "+fmtR(fixoMensal)+" ÷ "+diasCiclo+" × "+diaAtual+".",
+            ...(projecao!=null?["Projeção: o que sobrou antes dos custos fixos ("+fmtR(ate.bruto-ate.custos_var)+") ÷ "+diaAtual+" dias × "+diasCiclo+" dias, menos o fixo do mês ("+fmtR(fixoMensal)+"). Supõe que você mantenha o mesmo ritmo, folgas incluídas."]:["A projeção do fim do ciclo aparece a partir do 3º dia."])]}/>}
         <div style={{height:6,background:K.sep,borderRadius:3,overflow:"hidden"}} aria-hidden="true">
           <div style={{height:"100%",width:(diaAtual/diasCiclo*100)+"%",background:K.text}}/>
         </div>
@@ -1900,7 +1938,7 @@ function App(){
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
       <AvisosGlobais/>
       <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.8</span></h1>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.8.1</span></h1>
         <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}

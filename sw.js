@@ -2,7 +2,7 @@
 // - Pagina e icones: busca na rede primeiro (pega versao nova) e cai no cache se estiver sem sinal.
 // - Bibliotecas externas (versoes fixas): cache primeiro, nunca mudam.
 // - Supabase (dados e login): nunca passa pelo cache; offline o proprio app usa a copia local.
-const VERSAO = "porkm-v1.8"; // trocar a cada versao: limpa o cache antigo no celular
+const VERSAO = "porkm-v1.8.1"; // trocar a cada versao: limpa o cache antigo no celular
 const APP = ["./", "./index.html", "./manifest.webmanifest", "./icone.svg", "./icone-180.png", "./icone-192.png", "./icone-512.png"];
 const LIBS = [
   "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
