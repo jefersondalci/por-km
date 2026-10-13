@@ -1,5 +1,10 @@
 # Changelog — Por km
 
+## v1.8.1 — 2026-10-13
+
+### Novo
+- **Botão "?" no Início**: nos blocos "Hoje" e "Ciclo até hoje", mostra passo a passo como o valor foi calculado, com os seus números (bruto, combustível, pneu/revisão/reserva e a parte dos custos fixos).
+
 ## v1.8 — 2026-10-13
 
 ### Novo Início
