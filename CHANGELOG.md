@@ -1,5 +1,36 @@
 # Changelog — Por km
 
+## v1.6 — 2026-10-13
+
+### Novo
+- **Modo escuro**: segue o modo do celular; em Ajustes → Aparência dá para fixar Claro ou Escuro.
+- **Bloqueio por vencimento**: quem passa da data de vencimento (qualquer plano, menos vitalício) vê a tela "Seu plano venceu". O dia do vencimento ainda vale. O bloqueio também vale no servidor: conta vencida ou não ativada não lê nem grava dados.
+- **Hodômetro no abastecimento**: digitando o km do painel, o app calcula sozinho os km rodados desde o abastecimento anterior.
+- **Editar turno por app**: a edição mostra Uber, 99 e Particular separados (antes só os totais, e o filtro por app ficava com número velho). Turnos antigos, sem divisão, continuam editando os totais.
+
+### Corrigido
+- **Vírgula no teclado**: campos de valor abrem teclado com vírgula (no iPhone não dava para digitar "2,30").
+- **Filtro "Uber / 99" somava o Particular**: agora são três opções — Todos, Uber / 99 e Particular. Os km e as horas do turno são divididos entre os apps pela proporção de viagens (antes cada app levava o km do turno inteiro, e o R$/km do Particular saía absurdo).
+- **Gráfico de km/L** mostrava os valores como dinheiro ("R$ 11").
+- Valores negativos aparecem como "−R$ 305,33".
+
+### Visual e textos
+- Letras maiores (mínimo 11–12px) e cinza mais escuro: mais legível no carro. Zoom do celular liberado.
+- Números com largura fixa (alinham nas colunas); títulos continuam em Georgia.
+- Ícones de traço no lugar dos emojis; abas com nome completo: Início, Diário, Combustível, Comparar, Ciclos, Ajustes ("Histórico" virou "Ciclos", e dentro do Diário a lista virou "Dias anteriores").
+- "IE 0,85" virou "▼ 15% abaixo da meta", com barra que enche até a meta.
+- Status com sinal além da cor (▲ lucro / ▼ prejuízo), para quem não distingue verde e vermelho.
+- R$/km do turno diz "sem bônus" e o do dia diz "com bônus".
+- Excluir turno/abastecimento fica dentro da tela de edição (não dá mais para apagar sem querer); botão "Editar" maior.
+- Avisos no topo da tela, no lugar das janelas do navegador.
+- Acentos em todos os textos; painel Admin na mesma paleta do app (e com modo escuro).
+- Ajustes: aviso de que os custos valem para o ciclo atual e textos de ajuda para Revisão e Emergência.
+- Dashboard: o custo de combustível diz de onde vem (estimado pela autonomia ou média dos abastecimentos).
+
+### Para ativar (uma vez)
+1. Supabase → SQL Editor: rodar `supabase/2026-10-13_v1.6_acesso_e_hodometro.sql`.
+2. Botão de WhatsApp na tela de bloqueio: preencher `WHATSAPP_ADMIN` no início do `index.html` (só números, com 55 + DDD).
+
 ## v1.5 — 2026-10-13
 
 ### Corrigido

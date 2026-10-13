@@ -49,8 +49,9 @@ Deno.serve(async (req) => {
   });
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return responder({ erro: "Faca login novamente." }, 401);
-  const { data: ctrl } = await sb.from("usuarios_controle").select("ativo").eq("user_id", user.id).maybeSingle();
-  if (ctrl && !ctrl.ativo) return responder({ erro: "Conta aguardando ativacao." }, 403);
+  // mesma regra do banco (conta_liberada): admin, sem controle, ou ativa e dentro do vencimento
+  const { data: liberada } = await sb.rpc("conta_liberada");
+  if (liberada === false) return responder({ erro: "Conta aguardando ativação ou plano vencido." }, 403);
 
   let corpo: { tipo?: string; dados?: Record<string, unknown> };
   try {
