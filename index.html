@@ -5,17 +5,42 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>Por km v1.5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#F5F2EB" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)"/>
+<title>Por km v1.6</title>
+<script>
+// tema escolhido na Config (auto/claro/escuro) aplicado antes de desenhar, sem piscar
+try{var t=localStorage.getItem("porkm_tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t);}catch(e){}
+</script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+/* Paleta "Kindle": bege no claro, grafite no escuro (para dirigir a noite sem ofuscar) */
+:root{
+  --bg:#F5F2EB;--card:#FEFDFB;--border:#D2CDBF;--text:#1A1A1A;--muted:#5C5B55;--sep:#E6E2D8;--bar:#3A3A38;--bar2:#A3A097;
+  --ok:#2E7D32;--err:#C62828;--warn:#9A5B00;--sombra:rgba(0,0,0,.35);
+  --fonte:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--titulo:Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-tema="claro"]){
+    --bg:#121210;--card:#1C1C19;--border:#3A3934;--text:#ECEAE3;--muted:#A9A69C;--sep:#2A2925;--bar:#D6D3C9;--bar2:#6F6C64;
+    --ok:#66BB6A;--err:#EF6B6B;--warn:#FFD43B;--sombra:rgba(0,0,0,.7);
+  }
+}
+:root[data-tema="escuro"]{
+  --bg:#121210;--card:#1C1C19;--border:#3A3934;--text:#ECEAE3;--muted:#A9A69C;--sep:#2A2925;--bar:#D6D3C9;--bar2:#6F6C64;
+  --ok:#66BB6A;--err:#EF6B6B;--warn:#FFD43B;--sombra:rgba(0,0,0,.7);
+}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
-body{background:#F5F2EB;font-family:Georgia,serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
-input,button,select{font-family:Arial,sans-serif}
+/* numeros com largura fixa: valores alinham nas colunas */
+body{background:var(--bg);color:var(--text);font-family:var(--fonte);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent;overflow:hidden}
+h1,h2{font-family:var(--titulo)}
+input,button,select{font-family:var(--fonte);font-variant-numeric:tabular-nums}
+input[type=date]{color-scheme:light dark}
 ::-webkit-scrollbar{width:0}
 </style>
 </head>
@@ -28,10 +53,12 @@ const sb=window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zeGxvZHV0Y2xsdnZ5ZHF0ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MjEyMzYsImV4cCI6MjA5NDk5NzIzNn0.AqeG32fO8ehQ8pIh9WbV5QovMe8U2hUIZN540AxPQwk"
 );
 const ADMIN_EMAIL="jefersondalci@gmail.com";
+// WhatsApp do administrador para ativar/renovar (so numeros, com 55 + DDD). Vazio = sem botao.
+const WHATSAPP_ADMIN="";
 
 // -- utils ------------------------------------------------------
 function fmt(n,dec=2){if(n==null||isNaN(n))return"--";return Number(n).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});}
-function fmtR(n){return(n==null||isNaN(n))?"--":"R$ "+fmt(n);}
+function fmtR(n){return(n==null||isNaN(n))?"--":(n<0?"−R$ "+fmt(-n):"R$ "+fmt(n));}
 function parseN(v){const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n;}
 function fmtHora(h){if(!h||h<=0)return"0h00m";const hh=Math.floor(h);const mm=Math.round((h-hh)*60);return hh+"h"+(mm<10?"0":"")+mm+"m";}
 // turno que vira a meia-noite (22:00 -> 02:00) soma 24h no fim
@@ -46,11 +73,11 @@ function dataFmt(d){if(!d)return"";const[y,m,dd]=d.split("-");return dd+"/"+m+"/
 async function pedirAnalise(tipo,dados){
   try{
     const{data,error}=await sb.functions.invoke("analise-ia",{body:{tipo,dados}});
-    if(error)return"Nao foi possivel conectar a IA.";
+    if(error)return"Não foi possível conectar à IA.";
     return data?.texto||data?.erro||"Sem resposta.";
-  }catch{return"Nao foi possivel conectar a IA.";}
+  }catch{return"Não foi possível conectar à IA.";}
 }
-function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sab"][new Date(d+"T12:00:00").getDay()];}
+function diaSemana(d){return["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][new Date(d+"T12:00:00").getDay()];}
 
 const CFG0={meta_km:2.30,meta_hora:39.00,parcela:0,ipva:0,seguro:0,pneu_total:1000,pneu_km:60000,revisao_km:0.30,emergencia_km:0.12,autonomia:7.0,preco_litro:4.89,dia_ciclo:1,usar_media_comb:false};
 
@@ -76,7 +103,7 @@ function gerarCiclos(dia,turnos){
     const iniStr=isoLocal(ini);
     const fimStr=isoLocal(fim);
     if(iniStr>hoje())break;
-    ciclos.push({ini:iniStr,fim:fimStr,label:dataFmt(iniStr)+" -> "+dataFmt(fimStr)});
+    ciclos.push({ini:iniStr,fim:fimStr,label:dataFmt(iniStr)+" a "+dataFmt(fimStr)});
     ini=new Date(ini.getFullYear(),ini.getMonth()+1,d);
   }
   return ciclos.reverse();
@@ -112,10 +139,10 @@ function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
   const bruto=mes.reduce((s,t)=>s+parseN(t.bruto)+parseN(t.bonus),0);
   const viagens=mes.reduce((s,t)=>s+parseN(t.viagens),0);
   const abastP=abast.filter(a=>a.data&&a.data>=ini&&a.data<=fim);
-  let kmL=parseN(cc.autonomia)||7,precoComb=parseN(cc.preco_litro)||5;
+  let kmL=parseN(cc.autonomia)||7,precoComb=parseN(cc.preco_litro)||5,comb_real=false;
   if(cfg.usar_media_comb&&abastP.length>0){
     const m=mediaAbast(abastP);
-    if(m.kmL>0){kmL=m.kmL;precoComb=m.preco;}
+    if(m.kmL>0){kmL=m.kmL;precoComb=m.preco;comb_real=true;}
   }
   const comb_total=kmL>0?(km_total/kmL)*precoComb:0;
   const pneu_t=km_total*(parseN(cc.pneu_total)/Math.max(1,parseN(cc.pneu_km)));
@@ -125,23 +152,24 @@ function calcPeriodo(turnos,abast,cfg,ini,fim,custosCiclo){
   const fixo=(parseN(cc.parcela)+parseN(cc.ipva)/12+parseN(cc.seguro)/12)*fator_fixo;
   const custos_var=comb_total+pneu_t+rev_t+emer_t;
   const custos=custos_var+fixo;
-  return{dias,km_total,hrs_total,bruto,viagens,comb_total,pneu_t,rev_t,emer_t,fixo,fator_fixo,custos_var,custos,lucro:bruto-custos,ini,fim,
+  return{dias,km_total,hrs_total,bruto,viagens,comb_total,comb_real,pneu_t,rev_t,emer_t,fixo,fator_fixo,custos_var,custos,lucro:bruto-custos,ini,fim,
     r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0};
 }
 
 // -- Kindle componentes base -----------------------------------
+// cores vem das variaveis CSS do <style>, que mudam sozinhas no modo escuro
 const K={
-  bg:"#F5F2EB",card:"#FEFDFB",border:"#D8D4C8",text:"#1A1A1A",
-  muted:"#888880",sep:"#EAE7E0",bar:"#3A3A38",
-  ok:"#2E7D32",err:"#C62828"
+  bg:"var(--bg)",card:"var(--card)",border:"var(--border)",text:"var(--text)",
+  muted:"var(--muted)",sep:"var(--sep)",bar:"var(--bar)",bar2:"var(--bar2)",
+  ok:"var(--ok)",err:"var(--err)",warn:"var(--warn)"
 };
 const Card=({children,style})=><div style={{background:K.card,borderRadius:2,border:"1px solid "+K.border,padding:14,...style}}>{children}</div>;
-const Lbl=({c})=><div style={{fontSize:11,color:K.muted,marginBottom:4,marginTop:10,letterSpacing:".3px"}}>{c}</div>;
+const Lbl=({c})=><div style={{fontSize:12,color:K.muted,marginBottom:4,marginTop:10,letterSpacing:".3px"}}>{c}</div>;
 const inputStyle={width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"10px 12px",fontSize:16,background:K.card,outline:"none",boxSizing:"border-box",color:K.text};
 const Inp=({label,type="text",value,onChange,placeholder,style})=>(
   <div style={style}>
     {label&&<Lbl c={label}/>}
-    <input type={type==="number"?"text":type} inputMode={type==="number"?"numeric":type==="date"?"none":undefined}
+    <input type={type==="number"?"text":type} inputMode={type==="number"?"decimal":type==="tel"?"tel":type==="date"?"none":undefined}
       value={value??""}  onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={inputStyle}/>
   </div>
 );
@@ -163,36 +191,65 @@ const Btn=({children,onClick,sec,disabled,style})=>(
 );
 function Toast({msg}){
   if(!msg)return null;
-  return <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px rgba(0,0,0,0.4)",maxWidth:300,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
+  return <div role="status" style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:K.text,color:K.bg,padding:"10px 20px",borderRadius:2,fontSize:14,fontWeight:600,zIndex:999,boxShadow:"0 2px 8px var(--sombra)",maxWidth:320,textAlign:"center",pointerEvents:"none"}}>{msg}</div>;
 }
-// IE bar -- linha fina, so o numero e colorido
+// aviso rapido no topo da tela (substitui o alert do navegador); o App mostra o ultimo aviso
+let _mostrarAviso=null;
+function avisar(m){if(_mostrarAviso)_mostrarAviso(m);else window.alert(m);}
+function AvisosGlobais(){
+  const[msg,setMsg]=useState("");
+  useEffect(()=>{
+    let t;
+    _mostrarAviso=(m)=>{setMsg(m);clearTimeout(t);t=setTimeout(()=>setMsg(""),3500);};
+    return()=>{_mostrarAviso=null;clearTimeout(t);};
+  },[]);
+  return <Toast msg={msg}/>;
+}
+// Ganho x meta: a barra enche ate a meta (risco = meta); o texto diz quanto acima/abaixo
 function IEBar({label,real,meta,valor}){
-  const ie=meta>0?real/meta:0,ok=ie>=1;
-  return <div style={{marginBottom:14}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
-      <span style={{fontSize:12,color:K.muted}}>{label}</span>
-      <span style={{fontSize:14,fontWeight:700,color:ok?K.ok:K.err}}>{valor} <span style={{fontSize:10,fontWeight:400}}>IE {fmt(ie)}</span></span>
+  const ie=meta>0?real/meta:0,ok=ie>=1,dif=(ie-1)*100;
+  return <div style={{marginBottom:16}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6,gap:8}}>
+      <span style={{fontSize:13,color:K.muted}}>{label} · meta {fmtR(meta)}</span>
+      <span style={{fontSize:15,fontWeight:700,color:ok?K.ok:K.err,whiteSpace:"nowrap"}}>{valor}</span>
     </div>
-    <div style={{height:1,background:K.border}}>
-      <div style={{height:"100%",width:Math.min(100,ie*60)+"%",background:ok?K.ok:K.err,transition:"width .5s"}}/>
+    <div style={{height:6,background:K.sep,borderRadius:3,position:"relative"}}>
+      <div style={{height:"100%",width:Math.min(100,ie*100)+"%",background:ok?K.ok:K.err,borderRadius:3,transition:"width .5s"}}/>
+    </div>
+    <div style={{fontSize:12,color:ok?K.ok:K.err,marginTop:4,textAlign:"right"}}>
+      {meta>0&&real>0?(ok?"▲ ":"▼ ")+fmt(Math.abs(dif),0)+"% "+(ok?"acima":"abaixo")+" da meta":"sem dados"}
     </div>
   </div>;
 }
 // Grafico Kindle -- barras cinza escuro
-function BarChart({data}){
+function BarChart({data,fmtV}){
   const max=Math.max(...data.map(d=>Math.abs(d.v)),1);
-  const fB=(v)=>v>=1000?"R$"+Math.round(v/1000*10)/10+"k":"R$"+Math.round(v);
+  const fB=fmtV||((v)=>v>=1000?"R$"+fmt(v/1000,1)+"k":"R$"+Math.round(v));
   return <div style={{display:"flex",alignItems:"flex-end",gap:3,height:100,padding:"0 2px"}}>
     {data.map((d,i)=>(
       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-        <div style={{fontSize:8,color:K.text,fontWeight:600,textAlign:"center",lineHeight:1.2}}>{d.v>0?fB(d.v):""}</div>
-        <div style={{width:"100%",height:Math.max(3,(Math.abs(d.v)/max)*62),background:d.v>=0?K.bar:"#888",borderRadius:"1px 1px 0 0"}}/>
-        <div style={{fontSize:8,color:K.muted,textAlign:"center"}}>{d.l}</div>
+        <div style={{fontSize:12,color:K.text,fontWeight:600,textAlign:"center",lineHeight:1.2}}>{d.v>0?fB(d.v):""}</div>
+        <div style={{width:"100%",height:Math.max(3,(Math.abs(d.v)/max)*62),background:d.v>=0?K.bar:K.bar2,borderRadius:"1px 1px 0 0"}}/>
+        <div style={{fontSize:12,color:K.muted,textAlign:"center"}}>{d.l}</div>
       </div>
     ))}
   </div>;
 }
-const SecTitle=({t})=><p style={{fontSize:10,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,margin:"16px 0 8px"}}>{t}</p>;
+// icones de traco (mesmo estilo em qualquer celular, ao contrario dos emojis)
+const ICONES={
+  inicio:<><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></>,
+  diario:<><rect x="5" y="4" width="14" height="17" rx="1"/><path d="M9 4V2.5h6V4M8 10h8M8 14h8M8 18h5"/></>,
+  bomba:<><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 8h6"/><path d="M14 10h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/></>,
+  barras:<><path d="M3 20h18M6 20v-8M11 20V5M16 20v-11"/></>,
+  ciclos:<><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/></>,
+  ajustes:<><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></>,
+  carro:<><path d="M3 13l2-6h14l2 6v5H3z"/><path d="M7 18v2M17 18v2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></>,
+  editar:<><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></>,
+};
+const Icone=({nome,tam=20,cor="currentColor"})=>(
+  <svg width={tam} height={tam} viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONES[nome]}</svg>
+);
+const SecTitle=({t})=><p style={{fontSize:12,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,margin:"16px 0 8px"}}>{t}</p>;
 
 // -- AUTH ------------------------------------------------------
 function TelaAuth({onLogado}){
@@ -212,7 +269,7 @@ function TelaAuth({onLogado}){
     if(!email)return toast("Digite seu e-mail primeiro.");
     setLoading(true);
     const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://jefersondalci.github.io/por-km"});
-    if(error)toast("Erro: "+error.message);else toast("E-mail de recuperacao enviado!");
+    if(error)toast("Erro: "+error.message);else toast("E-mail de recuperação enviado!");
     setLoading(false);
   };
   const cadastrar=async()=>{
@@ -233,24 +290,24 @@ function TelaAuth({onLogado}){
     <div style={{display:"flex",flexDirection:"column",justifyContent:"center",flex:1,padding:"32px 24px",overflowY:"auto"}}>
       <Toast msg={msg}/>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",fontSize:28}}>Por km</div>
+        <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}><Icone nome="carro" tam={36} cor={K.text}/></div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:11,margin:"2px 0 0",fontFamily:"Arial,sans-serif"}}>v1.5</p>
+        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.6</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<>
-        <Inp label="Seu nome" value={nome} onChange={setNome} placeholder="Joao Silva"/>
-        <Inp label="WhatsApp (com DDD)" type="number" value={tel} onChange={setTel} placeholder="21999999999"/>
+        <Inp label="Seu nome" value={nome} onChange={setNome} placeholder="João Silva"/>
+        <Inp label="WhatsApp (com DDD)" type="tel" value={tel} onChange={setTel} placeholder="21999999999"/>
       </>}
       <Inp label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com"/>
-      <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Minimo 6 caracteres"/>
+      <Inp label="Senha" type="password" value={senha} onChange={setSenha} placeholder="Mínimo 6 caracteres"/>
       <div style={{marginTop:20}}>
         {modo==="login"?<Btn onClick={entrar} disabled={loading}>{loading?"Entrando...":"Entrar"}</Btn>
           :<Btn onClick={cadastrar} disabled={loading}>{loading?"Criando...":"Criar minha conta"}</Btn>}
       </div>
       <button onClick={()=>setModo(modo==="login"?"cadastro":"login")}
         style={{marginTop:10,background:"none",border:"1px solid "+K.border,borderRadius:2,padding:11,fontSize:13,color:K.text,cursor:"pointer",width:"100%"}}>
-        {modo==="login"?"Criar conta gratis":"Ja tenho conta -- Entrar"}
+        {modo==="login"?"Criar conta grátis":"Já tenho conta · Entrar"}
       </button>
       {modo==="login"&&<button onClick={recuperar} disabled={loading}
         style={{marginTop:8,background:"none",border:"none",fontSize:12,color:K.muted,cursor:"pointer",width:"100%",padding:"6px 0"}}>
@@ -261,18 +318,57 @@ function TelaAuth({onLogado}){
 }
 
 // -- AGUARDANDO ------------------------------------------------
-function TelaAguardando({onSair}){
+// "liberada", "pendente" (aguardando ativacao) ou "vencida" (passou do vencimento; vitalicio nunca vence)
+function situacaoConta(controle,isAdmin){
+  if(isAdmin||!controle)return"liberada";
+  if(!controle.ativo)return"pendente";
+  if(!controle.vitalicio&&controle.vencimento&&controle.vencimento<hoje())return"vencida";
+  return"liberada";
+}
+function TelaAguardando({situacao,vencimento,onSair}){
+  const vencida=situacao==="vencida";
+  const texto=vencida?"Olá! Meu plano do Por km venceu e quero renovar.":"Olá! Criei minha conta no Por km e quero ativar.";
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:20}}>...</div>
-      <h2 style={{fontSize:20,fontWeight:700,color:K.text,marginBottom:12}}>Conta em analise</h2>
-      <p style={{fontSize:14,color:K.muted,lineHeight:1.7,marginBottom:24}}>Aguarde a ativacao pelo administrador.</p>
-      <button onClick={onSair} style={{background:"none",border:"1px solid "+K.border,borderRadius:2,padding:"10px 24px",fontSize:13,color:K.muted,cursor:"pointer"}}>Sair</button>
+      <div style={{marginBottom:20}}><Icone nome={vencida?"ciclos":"carro"} tam={48} cor={K.muted}/></div>
+      <h2 style={{fontSize:22,fontWeight:700,color:K.text,marginBottom:12}}>{vencida?"Seu plano venceu":"Conta em análise"}</h2>
+      <p style={{fontSize:15,color:K.muted,lineHeight:1.7,marginBottom:24}}>
+        {vencida?"O acesso terminou em "+dataFmt(vencimento)+". Renove para continuar usando — seus dados continuam guardados."
+          :"Aguarde a ativação pelo administrador."}
+      </p>
+      {WHATSAPP_ADMIN&&<a href={"https://wa.me/"+WHATSAPP_ADMIN+"?text="+encodeURIComponent(texto)} target="_blank" rel="noopener"
+        style={{display:"block",width:"100%",maxWidth:300,padding:"13px 16px",marginBottom:10,background:K.text,color:K.bg,borderRadius:2,fontSize:15,fontWeight:600,textDecoration:"none"}}>
+        {vencida?"Renovar pelo WhatsApp":"Falar pelo WhatsApp"}
+      </a>}
+      <button onClick={onSair} style={{background:"none",border:"1px solid "+K.border,borderRadius:2,padding:"11px 24px",fontSize:14,color:K.muted,cursor:"pointer"}}>Sair</button>
     </div>
   );
 }
 
 // -- CONFIG ----------------------------------------------------
+const Ajuda=({t})=><p style={{fontSize:12,color:K.muted,lineHeight:1.5,marginTop:6}}>{t}</p>;
+
+// tema fica so neste aparelho (localStorage); "auto" segue o modo claro/escuro do celular
+function SeletorTema(){
+  const ler=()=>{try{return localStorage.getItem("porkm_tema")||"auto";}catch(e){return"auto";}};
+  const[tema,setTema]=useState(ler);
+  const escolher=(t)=>{
+    setTema(t);
+    try{if(t==="auto")localStorage.removeItem("porkm_tema");else localStorage.setItem("porkm_tema",t);}catch(e){}
+    if(t==="auto")document.documentElement.removeAttribute("data-tema");else document.documentElement.setAttribute("data-tema",t);
+  };
+  return(
+    <div>
+      <div style={{display:"flex",border:"1px solid "+K.border,borderRadius:2,overflow:"hidden"}}>
+        {[["auto","Automático"],["claro","Claro"],["escuro","Escuro"]].map(([v,l])=>(
+          <button key={v} onClick={()=>escolher(v)} aria-pressed={tema===v}
+            style={{flex:1,padding:"11px 4px",border:"none",cursor:"pointer",fontSize:14,background:tema===v?K.text:K.card,color:tema===v?K.bg:K.muted,fontWeight:tema===v?700:400}}>{l}</button>
+        ))}
+      </div>
+      <Ajuda t="Automático segue o modo do celular. O escuro cansa menos a vista dirigindo à noite."/>
+    </div>
+  );
+}
 function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
   const[form,setForm]=useState({...CFG0,...cfg});
   const[loading,setLoading]=useState(false);
@@ -314,7 +410,7 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
     // Recarrega custos do ciclo para atualizar o dashboard
     const{data:cc}=await sb.from("custos_ciclo").select("*").eq("user_id",userId);
     if(cc)onSalvoCustos(cc);
-    setLoading(false);alert("Configuracoes salvas para o ciclo atual!");
+    setLoading(false);avisar("Ajustes salvos para o ciclo atual.");
   };
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
@@ -324,31 +420,37 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
         <Inp label="Meta R$/hora" type="number" {...f("meta_hora")}/>
       </div>
       <SecTitle t="Ciclo financeiro"/>
-      <Lbl c="Dia de inicio do ciclo (ex: 12 para ciclo do dia 12 ao 11)"/>
+      <Lbl c="Dia de início do ciclo (ex.: 12 para ciclo do dia 12 ao 11)"/>
       <input type="number" inputMode="numeric" value={form.dia_ciclo??1} onChange={e=>setForm(p=>({...p,dia_ciclo:e.target.value}))} min="1" max="28" style={inputStyle}/>
+      <Ajuda t="Ao trocar o dia de início, ciclos antigos podem deixar de achar os custos que foram salvos para eles."/>
+      <div style={{marginTop:16,padding:"10px 12px",border:"1px solid "+K.border,borderRadius:2,background:K.bg}}>
+        <p style={{fontSize:13,color:K.text,lineHeight:1.5}}>Os custos abaixo valem para o <b>ciclo atual ({dataFmt(ca.ini)} a {dataFmt(ca.fim)})</b>. Ciclos anteriores continuam com os custos que tinham.</p>
+      </div>
       <SecTitle t="Custos fixos mensais"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Parcela do carro (R$)" type="number" {...f("parcela")}/>
         <Inp label="IPVA anual (R$)" type="number" {...f("ipva")}/>
         <Inp label="Seguro anual (R$)" type="number" {...f("seguro")}/>
       </div>
-      <SecTitle t="Custos variaveis por km"/>
+      <SecTitle t="Custos variáveis por km"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Total dos pneus (R$)" type="number" {...f("pneu_total")}/>
-        <Inp label="Duracao pneu (km)" type="number" {...f("pneu_km")}/>
-        <Inp label="Revisao R$/km" type="number" {...f("revisao_km")}/>
-        <Inp label="Emergencia R$/km" type="number" {...f("emergencia_km")}/>
+        <Inp label="Duração dos pneus (km)" type="number" {...f("pneu_km")}/>
+        <Inp label="Revisão R$/km" type="number" {...f("revisao_km")}/>
+        <Inp label="Emergência R$/km" type="number" {...f("emergencia_km")}/>
       </div>
-      <SecTitle t="Combustivel"/>
+      <Ajuda t="Revisão: some o gasto de um ano com óleo, filtros, freios e revisões e divida pelos km rodados no ano (costuma ficar entre R$ 0,15 e R$ 0,35/km)."/>
+      <Ajuda t="Emergência: reserva para imprevistos (batida, guincho, peça quebrada). Sugestão: R$ 0,10/km."/>
+      <SecTitle t="Combustível"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Autonomia fixa (km/L)" type="number" {...f("autonomia")}/>
-        <Inp label="Preco do litro (R$)" type="number" {...f("preco_litro")}/>
+        <Inp label="Preço do litro (R$)" type="number" {...f("preco_litro")}/>
       </div>
       <div style={{marginTop:14,background:K.bg,borderRadius:2,padding:12,border:"1px solid "+K.border}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <p style={{fontSize:13,fontWeight:600,color:K.text}}>Usar media real dos abastecimentos</p>
-            <p style={{fontSize:11,color:K.muted,marginTop:3}}>Calcula a autonomia com base nos abastecimentos do ciclo</p>
+            <p style={{fontSize:13,fontWeight:600,color:K.text}}>Usar média real dos abastecimentos</p>
+            <p style={{fontSize:12,color:K.muted,marginTop:3}}>Calcula a autonomia com base nos abastecimentos do ciclo</p>
           </div>
           <div onClick={()=>setForm(p=>({...p,usar_media_comb:!p.usar_media_comb}))}
             style={{width:44,height:24,borderRadius:12,background:form.usar_media_comb?K.text:K.border,position:"relative",cursor:"pointer",flexShrink:0,marginLeft:12}}>
@@ -356,7 +458,9 @@ function TelaConfig({cfg,userId,onSalvo,onSalvoCustos}){
           </div>
         </div>
       </div>
-      <div style={{marginTop:24}}><Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar configuracoes"}</Btn></div>
+      <div style={{marginTop:24}}><Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar ajustes"}</Btn></div>
+      <SecTitle t="Aparência"/>
+      <SeletorTema/>
     </div>
   );
 }
@@ -366,16 +470,16 @@ function FormAbrirTurno({numTurno,onSalvar,onCancelar,loading}){
   const[form,setForm]=useState({data:hoje(),num:numTurno,km_i:"",h_i:""});
   return(
     <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>Abrindo {form.num}. turno</p>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>Abrindo o {form.num}º turno</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
-        <Inp label="No. do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
+        <Inp label="Nº do turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
         <Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))} placeholder="75937"/>
-        <InpHora label="Hora inicio" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
+        <InpHora label="Hora início" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
-        <Btn onClick={()=>{if(!form.km_i||!form.h_i)return alert("Preencha KM e hora.");onSalvar(form);}} disabled={loading}>{loading?"Abrindo...":"Abrir turno"}</Btn>
+        <Btn onClick={()=>{if(!form.km_i||!form.h_i)return avisar("Preencha KM e hora.");onSalvar(form);}} disabled={loading}>{loading?"Abrindo...":"Abrir turno"}</Btn>
       </div>
     </Card>
   );
@@ -387,9 +491,9 @@ function SecaoApp({titulo,dados,setDados,temBonus=true}){
       <p style={{fontSize:12,fontWeight:700,color:K.text,marginBottom:8}}>{titulo}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
         <InpMoeda label="Bruto (R$)" value={dados.bruto} onChange={v=>setDados(d=>({...d,bruto:v}))}/>
-        <Inp label="No. de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
+        <Inp label="Nº de viagens" type="number" value={dados.viagens} onChange={v=>setDados(d=>({...d,viagens:v}))} placeholder="0"/>
       </div>
-      {temBonus&&<InpMoeda label="Bonus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
+      {temBonus&&<InpMoeda label="Bônus (R$)" value={dados.bonus} onChange={v=>setDados(d=>({...d,bonus:v}))}/>}
     </div>
   );
 }
@@ -406,8 +510,8 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   const hrs=horasDiff(turno.h_i,h_f);
   return(
     <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:K.text}}>Encerrando {turno.num}. turno</p>
-      <p style={{fontSize:11,color:K.muted,marginBottom:8}}>Iniciado {turno.data!==hoje()?"em "+dataFmt(turno.data)+" ":""}as {turno.h_i} -- KM inicial: {turno.km_i}</p>
+      <p style={{fontSize:13,fontWeight:600,marginBottom:2,color:K.text}}>Encerrando o {turno.num}º turno</p>
+      <p style={{fontSize:12,color:K.muted,marginBottom:8}}>Iniciado {turno.data!==hoje()?"em "+dataFmt(turno.data)+" ":""}às {turno.h_i} · KM inicial: {turno.km_i}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder="76031"/>
         <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
@@ -417,17 +521,17 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
       <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
       {totalBruto>0&&(
         <div style={{marginTop:12,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Bruto",fmtR(totalBruto)],["Bonus",fmtR(totalBonus)],["Total c/bonus",fmtR(totalBruto+totalBonus)],["Viagens",totalViagens+"v"]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:9,color:K.muted}}>{l}</div></div>
+          {[["KM rodado",km>0?km+" km":"--"],["Horas",hrs>0?fmtHora(hrs):"--"],["Bruto",fmtR(totalBruto)],["Bônus",fmtR(totalBonus)],["Total c/ bônus",fmtR(totalBruto+totalBonus)],["Viagens",totalViagens+"v"]].map(([l,v])=>(
+            <div key={l}><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:12,color:K.muted}}>{l}</div></div>
           ))}
         </div>
       )}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={()=>{
-          if(!km_f||!h_f)return alert("Preencha KM final e hora fim.");
-          if(totalBruto===0)return alert("Informe o bruto de pelo menos um app.");
-          if(totalViagens===0)return alert("Informe o numero de viagens.");
+          if(!km_f||!h_f)return avisar("Preencha KM final e hora fim.");
+          if(totalBruto===0)return avisar("Informe o bruto de pelo menos um app.");
+          if(totalViagens===0)return avisar("Informe o número de viagens.");
           onSalvar({...turno,km_f:parseN(km_f),h_f,bruto:totalBruto,viagens:totalViagens,bonus:totalBonus,
             uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),
             nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),
@@ -438,26 +542,63 @@ function FormFecharTurno({turno,onSalvar,onCancelar,loading}){
   );
 }
 
-function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
-  const[form,setForm]=useState(inicial);
+// turno fechado depois da v1.4 tem bruto/viagens/bonus separados por app
+function temDivisaoApps(t){
+  return["uber_bruto","uber_viagens","uber_bonus","nov99_bruto","nov99_viagens","nov99_bonus","part_bruto","part_viagens"].some(k=>parseN(t[k])>0);
+}
+// Edicao: turno com divisao por app edita cada app (o total e a soma, para o filtro por app nao
+// ficar com numero velho); turno antigo, sem divisao, edita so os totais.
+function FormTurnoEdit({turno,onSalvar,onExcluir,onCancelar,loading}){
+  const divisao=temDivisaoApps(turno);
+  const[form,setForm]=useState({data:turno.data,num:turno.num,km_i:turno.km_i,km_f:turno.km_f||"",h_i:turno.h_i||"",h_f:turno.h_f||"",
+    bruto:turno.bruto||"",viagens:turno.viagens||"",bonus:turno.bonus||""});
+  const v0=(x)=>parseN(x)||"";
+  const[uber,setUber]=useState({bruto:v0(turno.uber_bruto),viagens:v0(turno.uber_viagens),bonus:v0(turno.uber_bonus)});
+  const[nov,setNov]=useState({bruto:v0(turno.nov99_bruto),viagens:v0(turno.nov99_viagens),bonus:v0(turno.nov99_bonus)});
+  const[part,setPart]=useState({bruto:v0(turno.part_bruto),viagens:v0(turno.part_viagens)});
+  const campo=(k)=>({value:form[k],onChange:v=>setForm(f=>({...f,[k]:v}))});
+  const salvar=()=>{
+    const base={data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f};
+    if(!divisao)return onSalvar({...base,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)});
+    onSalvar({...base,
+      bruto:parseN(uber.bruto)+parseN(nov.bruto)+parseN(part.bruto),
+      viagens:parseN(uber.viagens)+parseN(nov.viagens)+parseN(part.viagens),
+      bonus:parseN(uber.bonus)+parseN(nov.bonus),
+      uber_bruto:parseN(uber.bruto),uber_viagens:parseN(uber.viagens),uber_bonus:parseN(uber.bonus),
+      nov99_bruto:parseN(nov.bruto),nov99_viagens:parseN(nov.viagens),nov99_bonus:parseN(nov.bonus),
+      part_bruto:parseN(part.bruto),part_viagens:parseN(part.viagens)});
+  };
   return(
     <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:4,color:K.text}}>{titulo}</p>
+      <p style={{fontSize:14,fontWeight:600,marginBottom:4,color:K.text}}>Editar {turno.num}º turno ({dataFmt(turno.data)})</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Inp label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
-        <Inp label="No. turno" type="number" value={form.num} onChange={v=>setForm(f=>({...f,num:v}))}/>
-        <Inp label="KM inicial" type="number" value={form.km_i} onChange={v=>setForm(f=>({...f,km_i:v}))}/>
-        <Inp label="KM final" type="number" value={form.km_f} onChange={v=>setForm(f=>({...f,km_f:v}))}/>
-        <InpHora label="Hora inicio" value={form.h_i} onChange={v=>setForm(f=>({...f,h_i:v}))}/>
-        <InpHora label="Hora fim" value={form.h_f} onChange={v=>setForm(f=>({...f,h_f:v}))}/>
-        <Inp label="Valor bruto (R$)" type="number" value={form.bruto} onChange={v=>setForm(f=>({...f,bruto:v}))}/>
-        <Inp label="No. de viagens" type="number" value={form.viagens} onChange={v=>setForm(f=>({...f,viagens:v}))}/>
+        <Inp label="Data" type="date" {...campo("data")}/>
+        <Inp label="Nº do turno" type="number" {...campo("num")}/>
+        <Inp label="KM inicial" type="number" {...campo("km_i")}/>
+        <Inp label="KM final" type="number" {...campo("km_f")}/>
+        <InpHora label="Hora início" {...campo("h_i")}/>
+        <InpHora label="Hora fim" {...campo("h_f")}/>
       </div>
-      <Inp label="Bonus (R$)" type="number" value={form.bonus} onChange={v=>setForm(f=>({...f,bonus:v}))} placeholder="0"/>
+      {divisao?<>
+        <SecaoApp titulo="Uber" dados={uber} setDados={setUber}/>
+        <SecaoApp titulo="99" dados={nov} setDados={setNov}/>
+        <SecaoApp titulo="Particular" dados={part} setDados={setPart} temBonus={false}/>
+      </>:<>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="Valor bruto (R$)" type="number" {...campo("bruto")}/>
+          <Inp label="Nº de viagens" type="number" {...campo("viagens")}/>
+        </div>
+        <Inp label="Bônus (R$)" type="number" {...campo("bonus")} placeholder="0"/>
+        <p style={{fontSize:12,color:K.muted,marginTop:8,lineHeight:1.5}}>Turno registrado antes da divisão por app: só os totais podem ser editados.</p>
+      </>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
-        <Btn onClick={()=>onSalvar(form)} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
+        <Btn onClick={salvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
       </div>
+      <button onClick={onExcluir} disabled={loading}
+        style={{marginTop:12,width:"100%",minHeight:44,background:"none",border:"1px solid "+K.err,borderRadius:2,color:K.err,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+        Excluir este turno
+      </button>
     </Card>
   );
 }
@@ -465,6 +606,7 @@ function FormTurnoEdit({inicial,onSalvar,onCancelar,loading,titulo}){
 // -- DIARIO ---------------------------------------------------
 function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
   const[modo,setModo]=useState(null),[editando,setEditando]=useState(null);
+  const topo=React.useRef(null); // a edicao aparece no topo: rola ate ela
   const[loading,setLoading]=useState(false),[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const turnosHoje=turnos.filter(t=>t.data===hoje()).sort((a,b)=>a.num-b.num);
   const turnosAnt=turnos.filter(t=>t.data!==hoje()).sort((a,b)=>b.data.localeCompare(a.data)||a.num-b.num);
@@ -500,7 +642,7 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
   const abrirTurno=async(form)=>{
     setLoading(true);
     const{data,error}=await sb.from("turnos").insert({user_id:userId,data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:0,h_i:form.h_i,h_f:"",bruto:0,viagens:0,bonus:0}).select().single();
-    if(!error){onAdd(data);setModo(null);}else alert("Erro: "+error.message);
+    if(!error){onAdd(data);setModo(null);}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const fecharTurno=async(form)=>{
@@ -510,20 +652,20 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
       nov99_bruto:parseN(form.nov99_bruto)||0,nov99_viagens:parseN(form.nov99_viagens)||0,nov99_bonus:parseN(form.nov99_bonus)||0,
       part_bruto:parseN(form.part_bruto)||0,part_viagens:parseN(form.part_viagens)||0};
     const{data,error}=await sb.from("turnos").update(upd).eq("id",turnoAberto.id).select().single();
-    if(!error){onUpdate(data);setModo(null);}else alert("Erro: "+error.message);
+    if(!error){onUpdate(data);setModo(null);}else avisar("Erro: "+error.message);
     setLoading(false);
   };
-  const salvarEd=async(form)=>{
+  const salvarEd=async(upd)=>{
     setLoading(true);
-    const{data,error}=await sb.from("turnos").update({data:form.data,num:parseN(form.num),km_i:parseN(form.km_i),km_f:parseN(form.km_f),h_i:form.h_i,h_f:form.h_f,bruto:parseN(form.bruto),viagens:parseN(form.viagens),bonus:parseN(form.bonus)}).eq("id",editando.id).select().single();
-    if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
+    const{data,error}=await sb.from("turnos").update(upd).eq("id",editando.id).select().single();
+    if(!error){onUpdate(data);setEditando(null);avisar("Turno salvo.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const excluir=async(t)=>{
-    if(!window.confirm("Excluir "+t.num+". turno de "+dataFmt(t.data)+"?"))return;
+    if(!window.confirm("Excluir o "+t.num+"º turno de "+dataFmt(t.data)+"? Não dá para desfazer."))return;
     setLoading(true);
     const{error}=await sb.from("turnos").delete().eq("id",t.id);
-    if(!error)onDelete(t.id);else alert("Erro: "+error.message);
+    if(!error){onDelete(t.id);setEditando(null);avisar("Turno excluído.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const pedirIA=useCallback(async()=>{
@@ -542,28 +684,30 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
     return(
       <Card style={{marginBottom:8}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:13,fontWeight:600,color:K.text}}>{aberto?"":""}{t.num}. Turno -- {dataFmt(t.data)}</span>
+          <span style={{fontSize:14,fontWeight:600,color:K.text}}>{t.num}º turno · {dataFmt(t.data)}</span>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {aberto?<span style={{fontSize:10,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
-              :<span style={{fontSize:10,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"v":"x"}</span>}
-            <button onClick={()=>{setEditando(t);setModo(null);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
-            <button onClick={()=>excluir(t)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
+            {aberto?<span style={{fontSize:12,color:K.muted,border:"1px solid "+K.border,padding:"2px 6px",borderRadius:1}}>Em aberto</span>
+              :<span style={{fontSize:12,color:lucro>0?K.ok:K.err,border:"1px solid "+(lucro>0?K.ok:K.err),padding:"2px 6px",borderRadius:1}}>{lucro>0?"▲ lucro":"▼ prejuízo"}</span>}
+            <button onClick={()=>{setEditando(t);setModo(null);topo.current?.scrollTo({top:0,behavior:"smooth"});}} aria-label="Editar turno"
+              style={{display:"flex",alignItems:"center",gap:4,minHeight:36,padding:"4px 10px",background:K.bg,border:"1px solid "+K.border,borderRadius:2,cursor:"pointer",color:K.text,fontSize:13}}>
+              <Icone nome="editar" tam={15} cor={K.muted}/>Editar
+            </button>
           </div>
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora inicio</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"4px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM inicial / Hora início</span><b style={{color:K.text}}>{t.km_i} / {t.h_i||"--"}</b></div>
         {!aberto&&<>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>KM rodado / Horas</span><b style={{color:K.text}}>{k} km / {fmtHora(h)}</b></div>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Viagens / Bruto</span><b style={{color:K.text}}>{t.viagens} / {fmtR(b)}</b></div>
-          {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bonus (nao conta no turno)</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}
+          {bonus>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Bônus (entra no resumo do dia)</span><b style={{color:K.text}}>{fmtR(bonus)}</b></div>}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"3px 0",borderTop:"1px solid "+K.sep}}><span style={{color:K.muted}}>Lucro est.</span><b style={{color:lucro>0?K.ok:K.err}}>{fmtR(lucro)}</b></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid "+K.sep}}>
             <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:okKm?K.ok:K.err}}>{fmtR(r_km)}/km</div>
-              <div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_km))}/km</div>
+              <div style={{fontSize:13,fontWeight:700,color:okKm?K.ok:K.err}}>{okKm?"▲":"▼"} {fmtR(r_km)}/km</div>
+              <div style={{fontSize:12,color:K.muted}}>sem bônus · meta {fmtR(parseN(cfg.meta_km))}</div>
             </div>
             <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"4px 6px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:okHr?K.ok:K.err}}>{fmtR(r_hr)}/h</div>
-              <div style={{fontSize:9,color:K.muted}}>meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+              <div style={{fontSize:13,fontWeight:700,color:okHr?K.ok:K.err}}>{okHr?"▲":"▼"} {fmtR(r_hr)}/h</div>
+              <div style={{fontSize:12,color:K.muted}}>sem bônus · meta {fmtR(parseN(cfg.meta_hora))}</div>
             </div>
           </div>
         </>}
@@ -577,45 +721,45 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtR(tot)}</div>
-          <div style={{fontSize:9,color:K.muted}}>Bruto c/ bonus</div>
+          <div style={{fontSize:12,color:K.muted}}>Bruto c/ bônus</div>
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{res.viagens}v / {res.km}km</div>
-          <div style={{fontSize:9,color:K.muted}}>Viagens / KM</div>
+          <div style={{fontSize:12,color:K.muted}}>Viagens / KM</div>
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"8px 6px"}}>
           <div style={{fontSize:15,fontWeight:700,color:K.text}}>{fmtHora(res.hrs)}</div>
-          <div style={{fontSize:9,color:K.muted}}>Horas trabalhadas</div>
+          <div style={{fontSize:12,color:K.muted}}>Horas trabalhadas</div>
         </div>
       </div>
       {res.bonus>0&&<div style={{background:K.bg,borderRadius:1,padding:"6px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:12,border:"1px solid "+K.border}}>
-        <span style={{color:K.text}}>Bonus do dia</span><b style={{color:K.text}}>{fmtR(res.bonus)}</b>
+        <span style={{color:K.text}}>Bônus do dia</span><b style={{color:K.text}}>{fmtR(res.bonus)}</b>
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?K.ok:K.err}}>{fmtR(rKm)}/km</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_km))}/km</div>
+          <div style={{fontSize:14,fontWeight:700,color:rKm>=parseN(cfg.meta_km)?K.ok:K.err}}>{rKm>=parseN(cfg.meta_km)?"▲":"▼"} {fmtR(rKm)}/km</div>
+          <div style={{fontSize:12,color:K.muted}}>com bônus · meta {fmtR(parseN(cfg.meta_km))}</div>
         </div>
         <div style={{textAlign:"center",border:"1px solid "+K.border,borderRadius:1,padding:"6px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?K.ok:K.err}}>{fmtR(rHr)}/h</div>
-          <div style={{fontSize:9,color:K.muted}}>dia c/ bonus -- meta {fmtR(parseN(cfg.meta_hora))}/h</div>
+          <div style={{fontSize:14,fontWeight:700,color:rHr>=parseN(cfg.meta_hora)?K.ok:K.err}}>{rHr>=parseN(cfg.meta_hora)?"▲":"▼"} {fmtR(rHr)}/h</div>
+          <div style={{fontSize:12,color:K.muted}}>com bônus · meta {fmtR(parseN(cfg.meta_hora))}</div>
         </div>
       </div>
     </Card>
   );
 
   return(
-    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
+    <div ref={topo} style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       {turnosCiclo.length>0&&<>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-          <SecTitle t="Suas medias gerais"/>
-          <span style={{fontSize:10,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span>
+          <SecTitle t="Médias do ciclo"/>
+          <span style={{fontSize:12,color:K.muted}}>{dataFmt(ca.ini)} / {dataFmt(ca.fim)}</span>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
           {[["KM/dia",fmt(totalDias>0?totalKm/totalDias:0,0)+" km"],["Bruto/dia",fmtR(totalDias>0?totalBruto/totalDias:0)],["Viagens/dia",fmt(totalDias>0?totalViagens/totalDias:0,1)],["R$/km",fmtR(totalKm>0?totalBruto/totalKm:0)]].map(([l,v])=>(
             <Card key={l} style={{padding:10,textAlign:"center"}}>
               <div style={{fontSize:15,fontWeight:700,color:K.text}}>{v}</div>
-              <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
+              <div style={{fontSize:12,color:K.muted,marginTop:2}}>{l}</div>
             </Card>
           ))}
         </div>
@@ -628,13 +772,12 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
       </div>
       {modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
       {modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-      {editando&&<FormTurnoEdit titulo={"Editar -- "+editando.num+". turno ("+dataFmt(editando.data)+")"}
-        inicial={{data:editando.data,num:editando.num,km_i:editando.km_i,km_f:editando.km_f||"",h_i:editando.h_i||"",h_f:editando.h_f||"",bruto:editando.bruto||"",viagens:editando.viagens||"",bonus:editando.bonus||""}}
-        onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
+      {editando&&<FormTurnoEdit key={editando.id} turno={editando}
+        onSalvar={salvarEd} onExcluir={()=>excluir(editando)} onCancelar={()=>setEditando(null)} loading={loading}/>}
       {turnosHoje.length===0&&!modo&&!editando&&(
         <div style={{textAlign:"center",padding:"24px 20px",color:K.muted,background:K.card,borderRadius:2,marginBottom:14,border:"1px solid "+K.border}}>
           <p style={{fontSize:13}}>Nenhum turno hoje ainda.</p>
-          <p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para comecar.</p>
+          <p style={{fontSize:12,marginTop:4}}>Toque em "Abrir turno" para começar.</p>
         </div>
       )}
       {turnosHoje.map(t=><CardTurno key={t.id} t={t}/>)}
@@ -642,8 +785,8 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
       {turnosHojeFechados.length>0&&(
         <div style={{background:K.card,borderRadius:2,padding:14,marginBottom:16,border:"1px solid "+K.border}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do dia -- IA</span>
-            <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>
+            <span style={{fontSize:12,fontWeight:600,color:K.text}}>Análise do dia · IA</span>
+            <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>
               {loadingAI?"Analisando...":"Analisar"}
             </button>
           </div>
@@ -652,7 +795,7 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
         </div>
       )}
       {turnosAnt.length>0&&<>
-        <SecTitle t="Historico"/>
+        <SecTitle t="Dias anteriores"/>
         {[...new Set(turnosAnt.map(t=>t.data))].map(data=>{
           const td=turnosAnt.filter(t=>t.data===data).sort((a,b)=>a.num-b.num);
           const fechados=td.filter(t=>parseN(t.km_f)>0&&parseN(t.bruto)>0);
@@ -664,7 +807,7 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
           const rKm=res.km>0?tot/res.km:0,rHr=res.hrs>0?tot/res.hrs:0;
           return(
             <div key={data}>
-              <p style={{fontSize:11,fontWeight:700,color:K.muted,margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:1}}>{dataFmt(data)}</p>
+              <p style={{fontSize:12,fontWeight:700,color:K.muted,margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:1}}>{dataFmt(data)}</p>
               {td.map(t=><CardTurno key={t.id} t={t}/>)}
               {fechados.length>0&&<ResumoDiaCard res={res} rKm={rKm} rHr={rHr} tot={tot}/>}
             </div>
@@ -676,33 +819,51 @@ function TelaDiario({turnos,cfg,custosCiclos,userId,onAdd,onUpdate,onDelete}){
 }
 
 // -- COMBUSTIVEL -----------------------------------------------
-function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
+// hodometro do abastecimento anterior (para calcular sozinho os km rodados desde ele)
+function hodometroAnterior(abastecimentos,data,ignorarId){
+  const ant=abastecimentos.filter(a=>a.id!==ignorarId&&parseN(a.hodometro)>0&&a.data<=data)
+    .sort((a,b)=>b.data.localeCompare(a.data)||parseN(b.hodometro)-parseN(a.hodometro))[0];
+  return ant?parseN(ant.hodometro):0;
+}
+function FormAbast({titulo,dados,setDados,hodoAnterior,onSalvar,onCancelar,onExcluir,loading}){
   const isGNV=dados.tipo==="GNV";
   const quant=parseN(dados.litros);
   const kmlF=quant>0?parseN(dados.km_rod)/quant:0;
-  const un=isGNV?"m3":"L";
+  const un=isGNV?"m³":"L";
+  // digitou o hodometro e ha um anterior: km rodado = diferenca (ainda da para corrigir a mao)
+  const mudarHodo=(v)=>setDados(f=>{
+    const novo={...f,hodometro:v};
+    const dif=parseN(v)-hodoAnterior;
+    if(hodoAnterior>0&&dif>0)novo.km_rod=String(Math.round(dif));
+    return novo;
+  });
   return(
     <Card style={{marginBottom:14}}>
-      <p style={{fontSize:13,fontWeight:600,marginBottom:8,color:K.text}}>{titulo}</p>
-      <Lbl c="Tipo de combustivel"/>
+      <p style={{fontSize:14,fontWeight:600,marginBottom:8,color:K.text}}>{titulo}</p>
+      <Lbl c="Tipo de combustível"/>
       <div style={{display:"flex",border:"1px solid "+K.border,borderRadius:2,overflow:"hidden",marginBottom:4}}>
         {["Gasolina","Alcool","GNV"].map(t=>(
-          <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))}
-            style={{flex:1,padding:"9px 4px",border:"none",cursor:"pointer",fontSize:12,background:dados.tipo===t?K.text:K.card,color:dados.tipo===t?K.bg:K.muted,fontWeight:dados.tipo===t?700:400}}>
-            {t}
+          <button key={t} onClick={()=>setDados(f=>({...f,tipo:t}))} aria-pressed={dados.tipo===t}
+            style={{flex:1,padding:"11px 4px",border:"none",cursor:"pointer",fontSize:14,background:dados.tipo===t?K.text:K.card,color:dados.tipo===t?K.bg:K.muted,fontWeight:dados.tipo===t?700:400}}>
+            {t==="Alcool"?"Álcool":t}
           </button>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <Inp label="Data" type="date" value={dados.data} onChange={v=>setDados(f=>({...f,data:v}))}/>
-        <Inp label={"Preco por "+(isGNV?"m3":"litro")+" (R$)"} type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="4.89"/>
-        <Inp label={isGNV?"m3 abastecidos":"Litros abastecidos"} type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40.0"/>
-        <Inp label="KM rodado" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
+        <Inp label={"Preço por "+(isGNV?"m³":"litro")+" (R$)"} type="number" value={dados.preco} onChange={v=>setDados(f=>({...f,preco:v}))} placeholder="5,89"/>
+        <Inp label={isGNV?"m³ abastecidos":"Litros abastecidos"} type="number" value={dados.litros} onChange={v=>setDados(f=>({...f,litros:v}))} placeholder="40,0"/>
+        <Inp label="Hodômetro agora (km)" type="number" value={dados.hodometro} onChange={mudarHodo} placeholder="76031"/>
       </div>
+      <Inp label="KM rodados desde o último abastecimento" type="number" value={dados.km_rod} onChange={v=>setDados(f=>({...f,km_rod:v}))} placeholder="280"/>
+      <p style={{fontSize:12,color:K.muted,marginTop:6,lineHeight:1.5}}>
+        {hodoAnterior>0?"Último hodômetro registrado: "+fmt(hodoAnterior,0)+" km. Digitando o hodômetro, os km rodados são calculados sozinhos."
+          :"Digite o hodômetro (km do painel) a cada abastecimento: a partir do próximo, os km rodados são calculados sozinhos."}
+      </p>
       {kmlF>0&&(
         <div style={{marginTop:10,background:K.bg,borderRadius:2,padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center",border:"1px solid "+K.border}}>
           {[["km/"+un,fmt(kmlF)],["R$/km","R$"+fmt(parseN(dados.preco)/kmlF,3)],["Total",fmtR(parseN(dados.litros)*parseN(dados.preco))]].map(([l,v])=>(
-            <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:10,color:K.muted}}>{l}</div></div>
+            <div key={l}><div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div><div style={{fontSize:12,color:K.muted}}>{l}</div></div>
           ))}
         </div>
       )}
@@ -710,19 +871,33 @@ function FormAbast({titulo,dados,setDados,onSalvar,onCancelar,loading}){
         <Btn sec onClick={onCancelar}>Cancelar</Btn>
         <Btn onClick={onSalvar} disabled={loading}>{loading?"Salvando...":"Salvar"}</Btn>
       </div>
+      {onExcluir&&<button onClick={onExcluir} disabled={loading}
+        style={{marginTop:12,width:"100%",minHeight:44,background:"none",border:"1px solid "+K.err,borderRadius:2,color:K.err,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+        Excluir este abastecimento
+      </button>}
     </Card>
   );
 }
 
+// grava o abastecimento; se o banco ainda nao tiver a coluna hodometro (SQL da v1.6 nao rodado), grava sem ela
+async function gravarAbast(q,dados){
+  let r=await q(dados);
+  if(r.error&&/hodometro/i.test(r.error.message||"")){const{hodometro,...sem}=dados;r=await q(sem);}
+  return r;
+}
+
 function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,periodoIni,periodoFim}){
-  const[form,setForm]=useState({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});
+  const VAZIO={data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:"",hodometro:""};
+  const[form,setForm]=useState(VAZIO);
   const[mostrar,setMostrar]=useState(false),[editando,setEditando]=useState(null),[loading,setLoading]=useState(false);
+  const topo=React.useRef(null);
 
   const excluirAbast=async(a)=>{
-    if(!window.confirm("Excluir abastecimento de "+dataFmt(a.data)+"?"))return;
+    if(!window.confirm("Excluir o abastecimento de "+dataFmt(a.data)+"? Não dá para desfazer."))return;
     const{error}=await sb.from("abastecimentos").delete().eq("id",a.id);
-    if(!error)onDelete(a.id);else alert("Erro: "+error.message);
+    if(!error){onDelete(a.id);setEditando(null);avisar("Abastecimento excluído.");}else avisar("Erro: "+error.message);
   };
+  const montar=(f)=>({data:f.data,tipo:f.tipo,km_rod:parseN(f.km_rod),litros:parseN(f.litros),preco:parseN(f.preco),hodometro:parseN(f.hodometro)||null});
 
   // Periodo do dashboard
   const abastPeriodo=abastecimentos.filter(a=>a.data&&a.data>=periodoIni&&a.data<=periodoFim);
@@ -738,61 +913,65 @@ function TelaCombustivel({abastecimentos,cfg,userId,onAdd,onUpdate,onDelete,peri
   // Grafico: ultimos 6 abastecimentos
   const abastGrafico=abastecimentos.slice(0,6);
   const salvar=async()=>{
-    if(!form.km_rod||!form.litros||!form.preco)return alert("Preencha todos os campos.");
+    if(!form.km_rod||!form.litros||!form.preco)return avisar("Preencha todos os campos.");
     setLoading(true);
-    const{data,error}=await sb.from("abastecimentos").insert({user_id:userId,data:form.data,tipo:form.tipo,km_rod:parseN(form.km_rod),litros:parseN(form.litros),preco:parseN(form.preco)}).select().single();
-    if(!error){onAdd(data);setMostrar(false);setForm({data:hoje(),tipo:"Gasolina",km_rod:"",litros:"",preco:""});}
-    else alert("Erro: "+error.message);
+    const{data,error}=await gravarAbast(d=>sb.from("abastecimentos").insert({user_id:userId,...d}).select().single(),montar(form));
+    if(!error){onAdd(data);setMostrar(false);setForm(VAZIO);avisar("Abastecimento salvo.");}
+    else avisar("Erro: "+error.message);
     setLoading(false);
   };
   const salvarEd=async()=>{
     setLoading(true);
-    const{data,error}=await sb.from("abastecimentos").update({data:editando.data,tipo:editando.tipo,km_rod:parseN(editando.km_rod),litros:parseN(editando.litros),preco:parseN(editando.preco)}).eq("id",editando.id).select().single();
-    if(!error){onUpdate(data);setEditando(null);}else alert("Erro: "+error.message);
+    const{data,error}=await gravarAbast(d=>sb.from("abastecimentos").update(d).eq("id",editando.id).select().single(),montar(editando));
+    if(!error){onUpdate(data);setEditando(null);avisar("Abastecimento salvo.");}else avisar("Erro: "+error.message);
     setLoading(false);
   };
   return(
-    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
+    <div ref={topo} style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={{fontSize:12,color:K.muted}}>Controle de consumo</p>
-        <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{padding:"7px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
+        <p style={{fontSize:13,color:K.muted}}>Controle de consumo</p>
+        <button onClick={()=>{setMostrar(!mostrar);setEditando(null);}} style={{minHeight:40,padding:"8px 14px",background:K.text,color:K.bg,border:"none",borderRadius:2,fontSize:14,fontWeight:600,cursor:"pointer"}}>+ Registrar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        {[["Media km/L (ult.4)",fmt(media)],["Custo med./km (ult.4)","R$"+fmt(media>0?mediaPreco/media:0,3)]].map(([l,v])=>(
+        {[["Média km/L (últ. 4)",fmt(media)],["Custo médio/km (últ. 4)","R$"+fmt(media>0?mediaPreco/media:0,3)]].map(([l,v])=>(
           <Card key={l} style={{padding:10,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
-            <div style={{fontSize:10,color:K.muted,marginTop:2}}>{l}</div>
+            <div style={{fontSize:12,color:K.muted,marginTop:2}}>{l}</div>
           </Card>
         ))}
       </div>
       {abastGrafico.length>1&&(
         <Card style={{marginBottom:14}}>
-          <SecTitle t="Evolucao km/L (ult. 6)"/>
-          <BarChart data={[...abastGrafico].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
+          <SecTitle t="Evolução km/L (últ. 6)"/>
+          <BarChart fmtV={v=>fmt(v,1)} data={[...abastGrafico].reverse().map(a=>({v:parseFloat((parseN(a.km_rod)/Math.max(0.01,parseN(a.litros))).toFixed(2)),l:dataFmt(a.data).slice(0,5)}))}/>
         </Card>
       )}
-      {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
-      {editando&&<FormAbast titulo={"Editar -- "+dataFmt(editando.data)} dados={editando} setDados={setEditando} onSalvar={salvarEd} onCancelar={()=>setEditando(null)} loading={loading}/>}
-      <SecTitle t="Historico"/>
+      {mostrar&&<FormAbast titulo="Novo abastecimento" dados={form} setDados={setForm} hodoAnterior={hodometroAnterior(abastecimentos,form.data,null)}
+        onSalvar={salvar} onCancelar={()=>setMostrar(false)} loading={loading}/>}
+      {editando&&<FormAbast titulo={"Editar abastecimento de "+dataFmt(editando.data)} dados={editando} setDados={setEditando} hodoAnterior={hodometroAnterior(abastecimentos,editando.data,editando.id)}
+        onSalvar={salvarEd} onCancelar={()=>setEditando(null)} onExcluir={()=>excluirAbast(editando)} loading={loading}/>}
+      <SecTitle t="Abastecimentos anteriores"/>
       {abastecimentos.length===0&&<p style={{color:K.muted,textAlign:"center",padding:24,fontSize:13}}>Nenhum abastecimento registrado.</p>}
       {abastecimentos.map(a=>{
         const kmlA=parseN(a.litros)>0?parseN(a.km_rod)/parseN(a.litros):0;
-        const un=a.tipo==="GNV"?"m3":"L";
+        const un=a.tipo==="GNV"?"m³":"L";
         return(
           <Card key={a.id} style={{marginBottom:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:13,fontWeight:600,color:K.text}}>{dataFmt(a.data)}</span>
-                <span style={{fontSize:11,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo}</span>
+                <span style={{fontSize:12,padding:"2px 8px",border:"1px solid "+K.border,borderRadius:1,color:K.muted}}>{a.tipo==="Alcool"?"Álcool":a.tipo}</span>
               </div>
-              <button onClick={()=>{setEditando({...a});setMostrar(false);}} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.muted}}>✏️</button>
-              <button onClick={()=>excluirAbast(a)} style={{fontSize:11,padding:"3px 8px",background:K.bg,border:"1px solid "+K.border,borderRadius:1,cursor:"pointer",color:K.err}}>X</button>
+              <button onClick={()=>{setEditando({...a,hodometro:a.hodometro||""});setMostrar(false);topo.current?.scrollTo({top:0,behavior:"smooth"});}} aria-label="Editar abastecimento"
+                style={{display:"flex",alignItems:"center",gap:4,minHeight:36,padding:"4px 10px",background:K.bg,border:"1px solid "+K.border,borderRadius:2,cursor:"pointer",color:K.text,fontSize:13}}>
+                <Icone nome="editar" tam={15} cor={K.muted}/>Editar
+              </button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
-              {[["KM rod.",a.km_rod+" km"],[un,fmt(a.litros)+un],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
+              {[["KM rod.",a.km_rod+" km"],[un==="L"?"Litros":"m³",fmt(a.litros)],["Total",fmtR(parseN(a.litros)*parseN(a.preco))],["km/"+un,fmt(kmlA)]].map(([l,v],i)=>(
                 <div key={l} style={{textAlign:"center",borderRight:i<3?"1px solid "+K.sep:"none"}}>
                   <div style={{fontSize:13,fontWeight:600,color:i===3?(kmlA>=media*0.92?K.ok:K.err):K.text}}>{v}</div>
-                  <div style={{fontSize:10,color:K.muted}}>{l}</div>
+                  <div style={{fontSize:12,color:K.muted}}>{l}</div>
                 </div>
               ))}
             </div>
@@ -830,7 +1009,7 @@ function TelaComparativo({turnos}){
       const sStr=isoLocal(s),eStr=isoLocal(e);
       const diasSem=Object.keys(porDia).filter(d=>d>=sStr&&d<=eStr);
       if(diasSem.length>0){
-        sems.push({label:dataFmt(sStr).slice(0,5)+" -> "+dataFmt(eStr).slice(0,5),ini:sStr,fim:eStr,dias:diasSem.map(d=>({data:d,...porDia[d]}))});
+        sems.push({label:dataFmt(sStr).slice(0,5)+" a "+dataFmt(eStr).slice(0,5),ini:sStr,fim:eStr,dias:diasSem.map(d=>({data:d,...porDia[d]}))});
       }
       s=new Date(e);s.setDate(e.getDate()+1);
     }
@@ -842,7 +1021,7 @@ function TelaComparativo({turnos}){
       <p style={{fontSize:14}}>Registre pelo menos 2 semanas para comparar.</p>
     </div>
   );
-  const DIAS=["Seg","Ter","Qua","Qui","Sex","Sab","Dom"];
+  const DIAS=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   const getSem=(idx)=>{
     const sem=semanas[idx];if(!sem)return[];
     return sem.dias.map(d=>({ds:diaSemana(d.data),r_km:d.km>0?d.bruto/d.km:0,r_hr:d.hrs>0?d.bruto/d.hrs:0,bruto:d.bruto,viagens:d.viagens}));
@@ -853,11 +1032,11 @@ function TelaComparativo({turnos}){
       <SecTitle t="Comparar semanas"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div><Lbl c="Semana A"/>
-          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"9px 10px",fontSize:13,background:K.card,outline:"none",color:K.text}}>
+          <select value={semA} onChange={e=>setSemA(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"10px 10px",fontSize:16,background:K.card,outline:"none",color:K.text}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
         <div><Lbl c="Semana B"/>
-          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"9px 10px",fontSize:13,background:K.card,outline:"none",color:K.text}}>
+          <select value={semB} onChange={e=>setSemB(parseInt(e.target.value))} style={{width:"100%",border:"1px solid "+K.border,borderRadius:2,padding:"10px 10px",fontSize:16,background:K.card,outline:"none",color:K.text}}>
             {semanas.map((s,i)=><option key={i} value={i}>{s.label}</option>)}
           </select></div>
       </div>
@@ -876,22 +1055,23 @@ function TelaComparativo({turnos}){
               <div key={ds} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                 <div style={{width:"100%",display:"flex",gap:2,alignItems:"flex-end",height:70}}>
                   <div style={{flex:1,height:Math.max(2,(vA/max)*65),background:K.bar,borderRadius:"1px 1px 0 0"}}/>
-                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:K.muted,borderRadius:"1px 1px 0 0"}}/>
+                  <div style={{flex:1,height:Math.max(2,(vB/max)*65),background:K.bar2,borderRadius:"1px 1px 0 0"}}/>
                 </div>
-                <div style={{fontSize:8,color:K.muted}}>{ds}</div>
+                <div style={{fontSize:12,color:K.muted}}>{ds}</div>
               </div>
             );
           })}
         </div>
-        <div style={{display:"flex",gap:16,marginTop:10,justifyContent:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:3,background:K.bar}}/><span style={{fontSize:11,color:K.muted}}>Sem A</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:3,background:K.muted}}/><span style={{fontSize:11,color:K.muted}}>Sem B</span></div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:"6px 16px",marginTop:10,justifyContent:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:10,background:K.bar}}/><span style={{fontSize:12,color:K.text}}>A: {semanas[semA]?.label}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:10,background:K.bar2}}/><span style={{fontSize:12,color:K.text}}>B: {semanas[semB]?.label}</span></div>
         </div>
       </Card>
       <Card style={{marginBottom:14}}>
-        <SecTitle t={"Detalhamento -- "+(metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto")}/>
+        <SecTitle t={"Detalhamento · "+(metrica==="r_km"?"R$/km":metrica==="r_hr"?"R$/hora":"Bruto")}/>
+        <p style={{fontSize:12,color:K.muted,marginBottom:8,lineHeight:1.5}}>B × A: quanto a semana B ficou acima (+) ou abaixo (−) da semana A.</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:6,paddingBottom:6,borderBottom:"1px solid "+K.sep}}>
-          {["Dia","Sem A","Viag A","Sem B","Viag B","Dif."].map(h=><div key={h} style={{fontSize:9,fontWeight:700,color:K.muted,textAlign:"center"}}>{h}</div>)}
+          {["Dia","Sem. A","Viag. A","Sem. B","Viag. B","B × A"].map(h=><div key={h} style={{fontSize:12,fontWeight:700,color:K.muted,textAlign:"center"}}>{h}</div>)}
         </div>
         {DIAS.map(ds=>{
           const dA=diasA.find(d=>d.ds===ds),dB=diasB.find(d=>d.ds===ds);
@@ -901,28 +1081,28 @@ function TelaComparativo({turnos}){
           return(
             <div key={ds} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderBottom:"1px solid "+K.sep,alignItems:"center"}}>
               <div style={{fontSize:12,fontWeight:600,color:K.text,textAlign:"center"}}>{ds}</div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{vA&&vA>0?fmtR(vA):"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dA?dA.viagens+"v":"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{vB&&vB>0?fmtR(vB):"--"}</span></div>
-              <div style={{textAlign:"center"}}><span style={{fontSize:11,color:K.muted}}>{dB?dB.viagens+"v":"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:K.text}}>{vA&&vA>0?fmtR(vA):"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:12,color:K.muted}}>{dA?dA.viagens+"v":"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:K.muted}}>{vB&&vB>0?fmtR(vB):"--"}</span></div>
+              <div style={{textAlign:"center"}}><span style={{fontSize:12,color:K.muted}}>{dB?dB.viagens+"v":"--"}</span></div>
               <div style={{textAlign:"center"}}>
-                {diff!=null?<span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:10,color:K.muted}}>--</span>}
+                {diff!=null?<span style={{fontSize:12,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>:<span style={{fontSize:12,color:K.muted}}>--</span>}
               </div>
             </div>
           );
         })}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,paddingTop:8,marginTop:4,borderTop:"1px solid "+K.border}}>
-          <div style={{fontSize:10,fontWeight:700,color:K.muted,textAlign:"center"}}>Med.</div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.text}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:K.muted}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
-          <div style={{textAlign:"center"}}><span style={{fontSize:10,color:K.muted}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
+          <div style={{fontSize:12,fontWeight:700,color:K.muted,textAlign:"center"}}>Média</div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:K.text}}>{(()=>{const v=diasA.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:12,color:K.muted}}>{diasA.length?diasA.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:K.muted}}>{(()=>{const v=diasB.filter(d=>d[metrica]>0);return v.length?fmtR(v.reduce((s,d)=>s+d[metrica],0)/v.length):"--";})()}</span></div>
+          <div style={{textAlign:"center"}}><span style={{fontSize:12,color:K.muted}}>{diasB.length?diasB.reduce((s,d)=>s+d.viagens,0)+"v":"--"}</span></div>
           <div style={{textAlign:"center"}}>{(()=>{
             const mA=diasA.filter(d=>d[metrica]>0),mB=diasB.filter(d=>d[metrica]>0);
-            if(!mA.length||!mB.length)return <span style={{fontSize:10,color:K.muted}}>--</span>;
+            if(!mA.length||!mB.length)return <span style={{fontSize:12,color:K.muted}}>--</span>;
             const vA=mA.reduce((s,d)=>s+d[metrica],0)/mA.length,vB=mB.reduce((s,d)=>s+d[metrica],0)/mB.length;
             const diff=vA>0?((vB-vA)/vA)*100:0;
-            return <span style={{fontSize:10,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>;
+            return <span style={{fontSize:12,fontWeight:700,color:diff>=0?K.ok:K.err}}>{diff>=0?"+":""}{fmt(diff,1)}%</span>;
           })()}</div>
         </div>
       </Card>
@@ -947,7 +1127,7 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
   );
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
-      <SecTitle t="Historico de ciclos"/>
+      <SecTitle t="Ciclos anteriores"/>
       {ciclos.map((c,i)=>{
         const m=calcPeriodo(turnos,abastecimentos,cfg,c.ini,c.fim,getCustosCiclo(c.ini));
         const ab=sel===i,isAt=c.ini===ca.ini;
@@ -955,17 +1135,17 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
           <Card key={i} style={{marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setSel(ab?null:i)}>
               <div>
-                <p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:10,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p>
+                <p style={{fontSize:13,fontWeight:600,color:K.text}}>{c.label} {isAt&&<span style={{fontSize:12,background:K.bg,color:K.muted,padding:"1px 6px",borderRadius:1,border:"1px solid "+K.border,marginLeft:4}}>atual</span>}</p>
                 <p style={{fontSize:12,color:m.lucro>=0?K.ok:K.err,marginTop:2}}>{fmtR(m.lucro)} lucro / {m.dias} dias</p>
               </div>
-              <span style={{color:K.muted,fontSize:14}}>{ab?"[-]":"[+]"}</span>
+              <span style={{color:K.muted,fontSize:13,whiteSpace:"nowrap"}}>{ab?"Fechar ▴":"Detalhes ▾"}</span>
             </div>
             {ab&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+K.sep}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                 {[["Bruto",fmtR(m.bruto)],["Lucro",fmtR(m.lucro)],["KM total",m.km_total+" km"],["Viagens",m.viagens]].map(([l,v])=>(
                   <div key={l} style={{background:K.bg,borderRadius:1,padding:8,textAlign:"center",border:"1px solid "+K.sep}}>
                     <div style={{fontSize:14,fontWeight:700,color:K.text}}>{v}</div>
-                    <div style={{fontSize:10,color:K.muted}}>{l}</div>
+                    <div style={{fontSize:12,color:K.muted}}>{l}</div>
                   </div>
                 ))}
               </div>
@@ -974,9 +1154,9 @@ function TelaHistorico({turnos,abastecimentos,cfg,custosCiclos}){
                 ["R$/hora",fmtR(m.r_hr)],
                 ["Custo/km",fmtR(m.custos/Math.max(1,m.km_total))],
                 ["Total horas",fmtHora(m.hrs_total)],
-                ["Media h/dia",fmtHora(m.dias>0?m.hrs_total/m.dias:0)+"/dia"],
+                ["Média h/dia",fmtHora(m.dias>0?m.hrs_total/m.dias:0)+"/dia"],
                 ["Custos fixos",fmtR(m.fixo)],
-                ["Custos variaveis",fmtR(m.custos_var)]
+                ["Custos variáveis",fmtR(m.custos_var)]
               ].map(([l,v])=>(
                 <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid "+K.sep}}>
                   <span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{v}</b>
@@ -1001,25 +1181,41 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
   const[aiMsg,setAiMsg]=useState(""),[loadingAI,setLoadingAI]=useState(false);
   const[appFiltro,setAppFiltro]=useState("total");
 
+  // Parte do turno de cada app. Km e horas do turno sao divididos pela proporcao de viagens
+  // (sem viagens, pela proporcao do bruto) — antes o app levava o km do turno inteiro.
   const extrairApp=(t,app)=>{
     const km=parseN(t.km_f)-parseN(t.km_i),hrs=horasDiff(t.h_i,t.h_f);
-    if(app==="uber")return{bruto:parseN(t.uber_bruto)+parseN(t.uber_bonus),viagens:parseN(t.uber_viagens),km,hrs};
-    if(app==="99")return{bruto:parseN(t.nov99_bruto)+parseN(t.nov99_bonus),viagens:parseN(t.nov99_viagens),km,hrs};
-    if(app==="part")return{bruto:parseN(t.part_bruto),viagens:parseN(t.part_viagens),km,hrs};
-    return{bruto:parseN(t.bruto)+parseN(t.bonus),viagens:parseN(t.viagens),km,hrs};
+    const tot={bruto:parseN(t.bruto)+parseN(t.bonus),viagens:parseN(t.viagens),km,hrs};
+    if(app==="total")return tot;
+    let bruto,viagens,brutoSemBonus;
+    if(!temDivisaoApps(t)){
+      // turno antigo, sem divisao por app: conta todo como Uber/99
+      if(app==="apps")return tot;
+      return{bruto:0,viagens:0,km:0,hrs:0};
+    }
+    if(app==="apps"){
+      brutoSemBonus=parseN(t.uber_bruto)+parseN(t.nov99_bruto);
+      bruto=brutoSemBonus+parseN(t.uber_bonus)+parseN(t.nov99_bonus);
+      viagens=parseN(t.uber_viagens)+parseN(t.nov99_viagens);
+    }else{ // "part"
+      brutoSemBonus=bruto=parseN(t.part_bruto);
+      viagens=parseN(t.part_viagens);
+    }
+    const parte=tot.viagens>0?viagens/tot.viagens:(parseN(t.bruto)>0?brutoSemBonus/parseN(t.bruto):0);
+    return{bruto,viagens,km:km*parte,hrs:hrs*parte};
   };
 
   const calcApp=(ini,fim)=>{
     const mes=turnos.filter(t=>t.data&&t.data>=ini&&t.data<=fim&&parseN(t.km_f)>0&&parseN(t.bruto)>0);
     let km_total=0,hrs_total=0,bruto=0,viagens=0;
-    mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;if(d.bruto>0){km_total+=d.km;hrs_total+=d.hrs;}});
+    mes.forEach(t=>{const d=extrairApp(t,appFiltro);bruto+=d.bruto;viagens+=d.viagens;km_total+=d.km;hrs_total+=d.hrs;});
     const full=calcPeriodo(turnos,abastecimentos,cfg,ini,fim,custosDoPeriodo);
     return{...full,bruto,viagens,km_total,hrs_total,r_km:km_total>0?bruto/km_total:0,r_hr:hrs_total>0?bruto/hrs_total:0,lucro:bruto-full.custos};
   };
 
   const mes=calcApp(dataIni,dataFim);
   const mesTotal=calcPeriodo(turnos,abastecimentos,cfg,dataIni,dataFim,custosDoPeriodo);
-  const APPS=[{id:"total",label:"Uber / 99"},{id:"part",label:"Particular"}];
+  const APPS=[{id:"total",label:"Todos"},{id:"apps",label:"Uber / 99"},{id:"part",label:"Particular"}];
 
   const semanasDociclo=(()=>{
     const ini=new Date(dataIni+"T12:00:00"),fim=new Date(dataFim+"T12:00:00");
@@ -1046,20 +1242,20 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
       <div style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <p style={{fontSize:12,color:K.muted}}>{mesTotal.dias} dias trabalhados</p>
-            <p style={{fontSize:11,color:K.muted}}>{dataFmt(dataIni)} / {dataFmt(dataFim)}</p>
+            <p style={{fontSize:12,color:K.muted}}>Período</p>
+            <p style={{fontSize:14,color:K.text,fontWeight:600}}>{dataFmt(dataIni)} a {dataFmt(dataFim)}</p>
           </div>
-          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{padding:"6px 12px",background:mostrarFiltro?K.text:K.bg,color:mostrarFiltro?K.bg:K.text,border:"1px solid "+K.border,borderRadius:2,fontSize:12,fontWeight:600,cursor:"pointer"}}>Periodo</button>
+          <button onClick={()=>setMostrarFiltro(!mostrarFiltro)} style={{minHeight:40,padding:"8px 14px",background:mostrarFiltro?K.text:K.bg,color:mostrarFiltro?K.bg:K.text,border:"1px solid "+K.border,borderRadius:2,fontSize:14,fontWeight:600,cursor:"pointer"}}>Mudar período</button>
         </div>
         {mostrarFiltro&&(
           <div style={{marginTop:10,background:K.bg,borderRadius:2,padding:12,border:"1px solid "+K.border}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><Lbl c="Data inicio"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={inputStyle}/></div>
+              <div><Lbl c="Data início"/><input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={inputStyle}/></div>
               <div><Lbl c="Data fim"/><input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={inputStyle}/></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
-              {[{l:"Ciclo atual",i:ca.ini,f:ca.fim},{l:"Ult. 30d",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return isoLocal(d);})(),f:hoje()}].map(({l,i,f})=>(
-                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:K.card,border:"1px solid "+K.border,borderRadius:2,fontSize:11,color:K.text,fontWeight:600,cursor:"pointer"}}>{l}</button>
+              {[{l:"Ciclo atual",i:ca.ini,f:ca.fim},{l:"Últimos 30 dias",i:(()=>{const d=new Date();d.setDate(d.getDate()-30);return isoLocal(d);})(),f:hoje()}].map(({l,i,f})=>(
+                <button key={l} onClick={()=>{setDataIni(i);setDataFim(f);setMostrarFiltro(false);}} style={{padding:"7px 4px",background:K.card,border:"1px solid "+K.border,borderRadius:2,fontSize:12,color:K.text,fontWeight:600,cursor:"pointer"}}>{l}</button>
               ))}
             </div>
           </div>
@@ -1067,21 +1263,22 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <Card>
-          <div style={{fontSize:11,color:K.muted}}>Lucro liquido</div>
+          <div style={{fontSize:12,color:K.muted}}>Lucro líquido</div>
           <div style={{fontSize:22,fontWeight:700,color:mesTotal.lucro>=0?K.ok:K.err,marginTop:4}}>{fmtR(mesTotal.lucro)}</div>
-          <div style={{fontSize:11,color:K.muted,marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
+          <div style={{fontSize:12,color:K.muted,marginTop:4}}>de {fmtR(mesTotal.bruto)} bruto</div>
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Dias trabalhados</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{mesTotal.dias} dias</div></Card>
-          <Card style={{padding:10}}><div style={{fontSize:10,color:K.muted}}>Viagens / KM</div><div style={{fontSize:15,fontWeight:700,color:K.text}}>{mesTotal.viagens} / {mesTotal.km_total}km</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:12,color:K.muted}}>Dias trabalhados</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{mesTotal.dias} dias</div></Card>
+          <Card style={{padding:10}}><div style={{fontSize:12,color:K.muted}}>Viagens / KM</div><div style={{fontSize:15,fontWeight:700,color:K.text}}>{mesTotal.viagens} / {mesTotal.km_total}km</div></Card>
         </div>
       </div>
       <Card style={{marginBottom:10}}>
-        <SecTitle t="Eficiencia (IE)"/>
+        <SecTitle t="Ganho x meta"/>
+        <p style={{fontSize:12,color:K.muted,marginTop:-4,marginBottom:8}}>O filtro abaixo vale para este quadro e para o gráfico semanal.</p>
         <div style={{display:"flex",gap:6,marginBottom:14}}>
           {APPS.map(({id,label})=>(
             <button key={id} onClick={()=>setAppFiltro(id)}
-              style={{flex:1,padding:"7px 4px",borderRadius:2,border:"1px solid "+(appFiltro===id?K.text:K.border),background:appFiltro===id?K.text:K.card,color:appFiltro===id?K.bg:K.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              style={{flex:1,padding:"7px 4px",borderRadius:2,border:"1px solid "+(appFiltro===id?K.text:K.border),background:appFiltro===id?K.text:K.card,color:appFiltro===id?K.bg:K.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>
               {label}
             </button>
           ))}
@@ -1090,7 +1287,7 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
         <IEBar label="R$/hora" real={mes.r_hr} meta={parseN(cfg.meta_hora)} valor={fmtR(mes.r_hr)+"/h"}/>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t={"Bruto por semana -- "+APPS.find(a=>a.id===appFiltro)?.label}/>
+        <SecTitle t={"Bruto por semana · "+APPS.find(a=>a.id===appFiltro)?.label}/>
         <BarChart data={semanasDociclo}/>
       </Card>
       <Card style={{marginBottom:10}}>
@@ -1113,21 +1310,21 @@ function TelaDashboard({turnos,abastecimentos,cfg,periodoIni,periodoFim,setPerio
         </div>
       </Card>
       <Card style={{marginBottom:10}}>
-        <SecTitle t="Custos variaveis"/>
-        {[["Combustivel",mes.comb_total],["Revisao e manutencao",mes.rev_t],["Pneu",mes.pneu_t],["Reserva emergencia",mes.emer_t]].map(([l,v])=>(
+        <SecTitle t="Custos variáveis"/>
+        {[[mes.comb_real?"Combustível (média dos abastecimentos)":"Combustível (estimado pela autonomia)",mes.comb_total],["Revisão e manutenção",mes.rev_t],["Pneu",mes.pneu_t],["Reserva de emergência",mes.emer_t]].map(([l,v])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"7px 0",borderBottom:"1px solid "+K.sep}}><span style={{color:K.muted}}>{l}</span><b style={{color:K.text}}>{fmtR(v)}</b></div>
         ))}
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variavel</span><span>{fmtR(mes.custos_var)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700,paddingTop:8,color:K.err}}><span>Total variável</span><span>{fmtR(mes.custos_var)}</span></div>
       </Card>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
         {[["Viagens/dia",mes.dias>0?fmt(mes.viagens/mes.dias,1):"--"],["Horas/dia",mes.dias>0?fmtHora(mes.hrs_total/mes.dias):"--"],["Viagens/hora",mes.hrs_total>0?fmt(mes.viagens/mes.hrs_total,2):"--"],["% comb/bruto",mes.bruto>0?fmt(mes.comb_total/mes.bruto*100,1)+"%":"--"]].map(([l,v])=>(
-          <Card key={l} style={{padding:10}}><div style={{fontSize:10,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>
+          <Card key={l} style={{padding:10}}><div style={{fontSize:12,color:K.muted,marginBottom:2}}>{l}</div><div style={{fontSize:17,fontWeight:700,color:K.text}}>{v}</div></Card>
         ))}
       </div>
       <div style={{background:K.card,borderRadius:2,padding:14,border:"1px solid "+K.border}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:K.text}}>Analise do ciclo -- IA</span>
-          <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button>
+          <span style={{fontSize:12,fontWeight:600,color:K.text}}>Análise do ciclo · IA</span>
+          <button onClick={pedirIA} disabled={loadingAI} style={{padding:"5px 10px",fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:1,cursor:"pointer",opacity:loadingAI?0.5:1}}>{loadingAI?"Analisando...":"Analisar"}</button>
         </div>
         {aiMsg?<p style={{fontSize:12,color:K.muted,lineHeight:1.8}}>{aiMsg}</p>
           :<p style={{fontSize:12,color:K.muted,fontStyle:"italic"}}>Toque em "Analisar" para a IA avaliar seu ciclo.</p>}
@@ -1154,7 +1351,7 @@ function TelaAdmin({onSair}){
     await sb.from("usuarios_controle").update(upd).eq("id",u.id);
     setUsuarios(p=>p.map(x=>x.id===u.id?{...x,...upd}:x));
     setSelecionado(null);
-    alert("Salvo!");
+    avisar("Salvo!");
   };
 
   const naoAdmin=usuarios.filter(u=>!u.admin);
@@ -1179,87 +1376,87 @@ function TelaAdmin({onSair}){
   });
 
   const PlanoTag=({u})=>{
-    if(u.vitalicio)return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#7B2FBE",color:"#fff",fontWeight:700}}>Vitalicio</span>;
-    if(u.plano==="pago")return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#1565C0",color:"#fff",fontWeight:700}}>Pago</span>;
-    return<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"#333",color:"#AAA",fontWeight:700}}>Gratuito</span>;
+    if(u.vitalicio)return<span style={{fontSize:12,padding:"2px 7px",borderRadius:10,background:"#7B2FBE",color:"#FFF",fontWeight:700}}>Vitalício</span>;
+    if(u.plano==="pago")return<span style={{fontSize:12,padding:"2px 7px",borderRadius:10,background:"#1565C0",color:"#FFF",fontWeight:700}}>Pago</span>;
+    return<span style={{fontSize:12,padding:"2px 7px",borderRadius:10,background:K.sep,color:K.muted,fontWeight:700}}>Gratuito</span>;
   };
 
   return(
-    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 20px",background:"#111"}}>
+    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 20px",background:K.bg}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div>
-          <p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>Painel de controle</p>
-          <h2 style={{fontSize:20,fontWeight:700,color:"#FFF"}}>Admin</h2>
+          <p style={{fontSize:12,color:K.muted}}>Painel de controle</p>
+          <h2 style={{fontSize:20,fontWeight:700,color:K.text}}>Admin</h2>
         </div>
-        <button onClick={onSair} style={{fontSize:12,color:"#AAA",background:"none",border:"1px solid #444",borderRadius:4,padding:"6px 12px",cursor:"pointer"}}>Voltar</button>
+        <button onClick={onSair} style={{fontSize:12,color:K.muted,background:"none",border:"1px solid "+K.border,borderRadius:4,padding:"6px 12px",cursor:"pointer"}}>Voltar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        <div style={{background:"#1B4332",border:"1px solid #2D6A4F",borderRadius:6,padding:12}}>
-          <p style={{fontSize:9,color:"#69DB7C",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>RECEITA/MES</p>
-          <p style={{fontSize:20,fontWeight:800,color:"#69DB7C"}}>{fmtR(pagantes.length*PRECO)}</p>
-          <p style={{fontSize:10,color:"#52B788",fontFamily:"Arial,sans-serif"}}>{pagantes.length} pagantes x {fmtR(PRECO)}</p>
+        <div style={{background:K.card,border:"1px solid "+K.ok,borderRadius:6,padding:12}}>
+          <p style={{fontSize:12,color:K.ok,fontWeight:700,letterSpacing:1}}>RECEITA/MÊS</p>
+          <p style={{fontSize:20,fontWeight:800,color:K.ok}}>{fmtR(pagantes.length*PRECO)}</p>
+          <p style={{fontSize:12,color:K.ok}}>{pagantes.length} pagantes x {fmtR(PRECO)}</p>
         </div>
-        <div style={{background:"#222",borderRadius:6,padding:12}}>
-          <p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>TOTAL USUARIOS</p>
-          <p style={{fontSize:20,fontWeight:800,color:"#FFF"}}>{naoAdmin.length}</p>
-          <p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>{naoAdmin.filter(u=>u.plano==="gratuito"&&!u.vitalicio).length} gratuitos / {vitaliciosN.length} vitalícios</p>
+        <div style={{background:K.bg,borderRadius:6,padding:12}}>
+          <p style={{fontSize:12,color:K.muted,fontWeight:700,letterSpacing:1}}>TOTAL USUÁRIOS</p>
+          <p style={{fontSize:20,fontWeight:800,color:K.text}}>{naoAdmin.length}</p>
+          <p style={{fontSize:12,color:K.muted}}>{naoAdmin.filter(u=>u.plano==="gratuito"&&!u.vitalicio).length} gratuitos / {vitaliciosN.length} vitalícios</p>
         </div>
-        <div style={{background:"#222",borderRadius:6,padding:12}}>
-          <p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>PENDENTES</p>
-          <p style={{fontSize:20,fontWeight:800,color:pendentes.length>0?"#FF6B6B":"#FFF"}}>{pendentes.length}</p>
-          <p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>aguardando ativacao</p>
+        <div style={{background:K.bg,borderRadius:6,padding:12}}>
+          <p style={{fontSize:12,color:K.muted,fontWeight:700,letterSpacing:1}}>PENDENTES</p>
+          <p style={{fontSize:20,fontWeight:800,color:pendentes.length>0?K.err:K.text}}>{pendentes.length}</p>
+          <p style={{fontSize:12,color:K.muted}}>aguardando ativação</p>
         </div>
-        <div style={{background:"#222",borderRadius:6,padding:12}}>
-          <p style={{fontSize:9,color:"#AAA",fontWeight:700,letterSpacing:1,fontFamily:"Arial,sans-serif"}}>VENCENDO EM 7D</p>
-          <p style={{fontSize:20,fontWeight:800,color:vencendo.length>0?"#FFD43B":"#FFF"}}>{vencendo.length}</p>
-          <p style={{fontSize:10,color:"#666",fontFamily:"Arial,sans-serif"}}>usuarios</p>
+        <div style={{background:K.bg,borderRadius:6,padding:12}}>
+          <p style={{fontSize:12,color:K.muted,fontWeight:700,letterSpacing:1}}>VENCENDO EM 7D</p>
+          <p style={{fontSize:20,fontWeight:800,color:vencendo.length>0?K.warn:K.text}}>{vencendo.length}</p>
+          <p style={{fontSize:12,color:K.muted}}>usuários</p>
         </div>
       </div>
       <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail"
-        style={{width:"100%",border:"1px solid #333",borderRadius:6,padding:"10px 12px",fontSize:13,background:"#222",color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+        style={{width:"100%",border:"1px solid "+K.border,borderRadius:6,padding:"10px 12px",fontSize:13,background:K.bg,color:K.text,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
       <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto"}}>
-        {[["todos","Todos "+naoAdmin.length],["pendentes","Pendentes "+pendentes.length],["pagantes","Pagantes "+pagantes.length],["vitalicio","Vitalicio "+vitaliciosN.length],["gratuito","Gratuito"]].map(([v,l])=>(
+        {[["todos","Todos "+naoAdmin.length],["pendentes","Pendentes "+pendentes.length],["pagantes","Pagantes "+pagantes.length],["vitalicio","Vitalício "+vitaliciosN.length],["gratuito","Gratuito"]].map(([v,l])=>(
           <button key={v} onClick={()=>setFiltro(v)}
-            style={{padding:"6px 12px",borderRadius:20,border:"1px solid #333",background:filtro===v?"#FFF":"#222",color:filtro===v?"#111":"#AAA",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",fontWeight:filtro===v?700:400}}>{l}</button>
+            style={{padding:"6px 12px",borderRadius:20,border:"1px solid "+K.border,background:filtro===v?K.text:K.bg,color:filtro===v?K.bg:K.muted,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",fontWeight:filtro===v?700:400}}>{l}</button>
         ))}
       </div>
-      <p style={{fontSize:11,color:"#444",marginBottom:10,fontFamily:"Arial,sans-serif"}}>{filtrados.length} usuarios encontrados</p>
-      {loading&&<p style={{textAlign:"center",color:"#AAA",padding:20}}>Carregando...</p>}
+      <p style={{fontSize:12,color:K.muted,marginBottom:10}}>{filtrados.length} usuários encontrados</p>
+      {loading&&<p style={{textAlign:"center",color:K.muted,padding:20}}>Carregando...</p>}
       {filtrados.map(u=>(
         <div key={u.id} onClick={()=>setSelecionado({...u})}
-          style={{background:"#1A1A1A",border:"1px solid #2A2A2A",borderRadius:8,padding:12,marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          style={{background:K.card,border:"1px solid "+K.border,borderRadius:8,padding:12,marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <div style={{width:36,height:36,borderRadius:"50%",background:"#333",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#FFF",flexShrink:0}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:K.sep,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:K.text,flexShrink:0}}>
               {(u.nome||u.email||"?")[0].toUpperCase()}
             </div>
             <div>
-              <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>{u.nome||"Sem nome"}</p>
-              <p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.email}</p>
-              {u.telefone&&<p style={{fontSize:10,color:"#555",fontFamily:"Arial,sans-serif"}}>{u.telefone}</p>}
-              {u.vencimento&&!u.vitalicio&&<p style={{fontSize:9,color:vencendo.find(x=>x.id===u.id)?"#FFD43B":"#555",fontFamily:"Arial,sans-serif"}}>Vence: {dataFmt(u.vencimento)}</p>}
+              <p style={{fontSize:13,fontWeight:600,color:K.text}}>{u.nome||"Sem nome"}</p>
+              <p style={{fontSize:12,color:K.muted}}>{u.email}</p>
+              {u.telefone&&<p style={{fontSize:12,color:K.muted}}>{u.telefone}</p>}
+              {u.vencimento&&!u.vitalicio&&<p style={{fontSize:12,color:vencendo.find(x=>x.id===u.id)?K.warn:K.muted}}>Vence: {dataFmt(u.vencimento)}</p>}
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
             <PlanoTag u={u}/>
-            <span style={{fontSize:9,color:u.ativo?"#69DB7C":"#FF6B6B",fontFamily:"Arial,sans-serif"}}>{u.ativo?"Ativo":"Bloqueado"}</span>
+            <span style={{fontSize:12,color:u.ativo?K.ok:K.err}}>{u.ativo?"Ativo":"Bloqueado"}</span>
             {u.telefone&&(
               <a href={"https://wa.me/55"+u.telefone.replace(/\D/g,"")+
                 "?text="+encodeURIComponent(
-                  "Ola "+(u.nome?u.nome.split(" ")[0]:"")+"! Tudo bem?\n\n"+
-                  "Vi que voce criou uma conta no *Por km* e queria te apresentar o app pessoalmente.\n\n"+
-                  "O *Por km* foi criado por um motorista com mais de 20 anos de experiencia em transporte, "+
-                  "para te ajudar a saber exatamente quanto voce lucra por km e por hora rodados.\n\n"+
-                  "Com ele voce:\n"+
+                  "Olá "+(u.nome?u.nome.split(" ")[0]:"")+"! Tudo bem?\n\n"+
+                  "Vi que você criou uma conta no *Por km* e queria te apresentar o app pessoalmente.\n\n"+
+                  "O *Por km* foi criado por um motorista com mais de 20 anos de experiência em transporte, "+
+                  "para te ajudar a saber exatamente quanto você lucra por km e por hora rodados.\n\n"+
+                  "Com ele você:\n"+
                   "✅ Registra seus turnos e acompanha R$/km e R$/hora em tempo real\n"+
-                  "✅ Ve o lucro real descontando combustivel, pneu, parcela e revisao\n"+
+                  "✅ Vê o lucro real descontando combustível, pneu, parcela e revisão\n"+
                   "✅ Compara semanas e descobre seus melhores horarios\n"+
-                  "✅ Tem analise de IA do seu dia e do seu ciclo\n\n"+
-                  "A assinatura e so *R$ 14,90/mes* — menos de R$ 0,50 por dia.\n\n"+
+                  "✅ Tem análise de IA do seu dia e do seu ciclo\n\n"+
+                  "A assinatura é só *R$ 14,90/mês* — menos de R$ 0,50 por dia.\n\n"+
                   "Posso te liberar o acesso agora. Quer experimentar? 🚗"
                 )}
                 target="_blank"
                 onClick={e=>e.stopPropagation()}
-                style={{display:"flex",alignItems:"center",gap:4,background:"#25D366",color:"#FFF",padding:"4px 8px",borderRadius:4,fontSize:11,fontWeight:700,textDecoration:"none"}}>
+                style={{display:"flex",alignItems:"center",gap:4,background:"#25D366",color:K.text,padding:"4px 8px",borderRadius:4,fontSize:12,fontWeight:700,textDecoration:"none"}}>
                 WhatsApp
               </a>
             )}
@@ -1267,71 +1464,71 @@ function TelaAdmin({onSair}){
         </div>
       ))}
       {selecionado&&(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div style={{background:"#1A1A1A",borderRadius:"16px 16px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:K.card,borderRadius:"16px 16px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div>
-                <p style={{fontSize:16,fontWeight:700,color:"#FFF"}}>{selecionado.nome||"Sem nome"}</p>
-                <p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>{selecionado.email}</p>
-                <p style={{fontSize:10,color:"#444",fontFamily:"Arial,sans-serif"}}>Cadastro: {selecionado.data_cadastro?new Date(selecionado.data_cadastro).toLocaleDateString("pt-BR"):"--"}</p>
+                <p style={{fontSize:16,fontWeight:700,color:K.text}}>{selecionado.nome||"Sem nome"}</p>
+                <p style={{fontSize:12,color:K.muted}}>{selecionado.email}</p>
+                <p style={{fontSize:12,color:K.muted}}>Cadastro: {selecionado.data_cadastro?new Date(selecionado.data_cadastro).toLocaleDateString("pt-BR"):"--"}</p>
               </div>
-              <button onClick={()=>setSelecionado(null)} style={{background:"none",border:"none",color:"#AAA",fontSize:22,cursor:"pointer",lineHeight:1}}>x</button>
+              <button onClick={()=>setSelecionado(null)} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer",lineHeight:1}}>x</button>
             </div>
-            <div style={{background:"#222",borderRadius:10,padding:14,marginBottom:12}}>
+            <div style={{background:K.bg,borderRadius:10,padding:14,marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
-                  <p style={{fontSize:13,fontWeight:600,color:"#FFF"}}>Acesso Vitalicio</p>
-                  <p style={{fontSize:11,color:"#555",fontFamily:"Arial,sans-serif"}}>Nunca expira</p>
+                  <p style={{fontSize:13,fontWeight:600,color:K.text}}>Acesso Vitalício</p>
+                  <p style={{fontSize:12,color:K.muted}}>Nunca expira</p>
                 </div>
                 <div onClick={()=>setSelecionado(p=>({...p,vitalicio:!p.vitalicio,plano:!p.vitalicio?"pago":p.plano}))}
-                  style={{width:48,height:26,borderRadius:13,background:selecionado.vitalicio?"#7B2FBE":"#333",position:"relative",cursor:"pointer",transition:"background .2s",flexShrink:0}}>
-                  <div style={{position:"absolute",top:3,left:selecionado.vitalicio?22:3,width:20,height:20,borderRadius:"50%",background:"#FFF",transition:"left .2s"}}/>
+                  style={{width:48,height:26,borderRadius:13,background:selecionado.vitalicio?"#7B2FBE":K.sep,position:"relative",cursor:"pointer",transition:"background .2s",flexShrink:0}}>
+                  <div style={{position:"absolute",top:3,left:selecionado.vitalicio?22:3,width:20,height:20,borderRadius:"50%",background:K.text,transition:"left .2s"}}/>
                 </div>
               </div>
             </div>
-            <p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Plano</p>
+            <p style={{fontSize:12,color:K.muted,marginBottom:6}}>Plano</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
               {["gratuito","pago"].map(p=>(
                 <button key={p} onClick={()=>setSelecionado(x=>({...x,plano:p}))}
                   style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,
-                    background:selecionado.plano===p&&!selecionado.vitalicio?"#1565C0":"#333",
-                    color:selecionado.plano===p&&!selecionado.vitalicio?"#FFF":"#AAA"}}>
+                    background:selecionado.plano===p&&!selecionado.vitalicio?"#1565C0":K.sep,
+                    color:selecionado.plano===p&&!selecionado.vitalicio?K.text:K.muted}}>
                   {p==="gratuito"?"Gratuito":"Pago"}
                 </button>
               ))}
             </div>
-            <p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Status</p>
+            <p style={{fontSize:12,color:K.muted,marginBottom:6}}>Status</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
               <button onClick={()=>setSelecionado(p=>({...p,ativo:true}))}
-                style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:selecionado.ativo?"#1B4332":"#333",color:selecionado.ativo?"#69DB7C":"#AAA"}}>
+                style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:selecionado.ativo?K.card:K.sep,color:selecionado.ativo?K.ok:K.muted}}>
                 Ativo
               </button>
               <button onClick={()=>setSelecionado(p=>({...p,ativo:false}))}
-                style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:!selecionado.ativo?"#7B1010":"#333",color:!selecionado.ativo?"#FF6B6B":"#AAA"}}>
+                style={{padding:"10px",borderRadius:8,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,background:!selecionado.ativo?K.card:K.sep,color:!selecionado.ativo?K.err:K.muted}}>
                 Bloqueado
               </button>
             </div>
             {!selecionado.vitalicio&&<>
-              <p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Vencimento</p>
+              <p style={{fontSize:12,color:K.muted,marginBottom:6}}>Vencimento</p>
               <input type="date" value={selecionado.vencimento||""} onChange={e=>setSelecionado(p=>({...p,vencimento:e.target.value}))}
-                style={{width:"100%",background:"#222",border:"1px solid #333",borderRadius:8,padding:"10px 12px",fontSize:14,color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:4}}/>
-              <p style={{fontSize:10,color:"#444",marginBottom:12,fontFamily:"Arial,sans-serif"}}>Se nao informar, sera 30 dias a partir de hoje</p>
+                style={{width:"100%",background:K.bg,border:"1px solid "+K.border,borderRadius:8,padding:"10px 12px",fontSize:14,color:K.text,outline:"none",boxSizing:"border-box",marginBottom:4}}/>
+              <p style={{fontSize:12,color:K.muted,marginBottom:12}}>Se não informar, será 30 dias a partir de hoje</p>
             </>}
-            <p style={{fontSize:11,color:"#555",marginBottom:6,fontFamily:"Arial,sans-serif"}}>Observacoes</p>
+            <p style={{fontSize:12,color:K.muted,marginBottom:6}}>Observações</p>
             <input value={selecionado.observacoes||""} onChange={e=>setSelecionado(p=>({...p,observacoes:e.target.value}))}
-              placeholder="Ex: Pagou em 10/07 via PIX"
-              style={{width:"100%",background:"#222",border:"1px solid #333",borderRadius:8,padding:"10px 12px",fontSize:13,color:"#FFF",outline:"none",boxSizing:"border-box",marginBottom:16}}/>
+              placeholder="Ex.: Pagou em 10/07 via PIX"
+              style={{width:"100%",background:K.bg,border:"1px solid "+K.border,borderRadius:8,padding:"10px 12px",fontSize:13,color:K.text,outline:"none",boxSizing:"border-box",marginBottom:16}}/>
             <button onClick={()=>salvarUsuario(selecionado)}
-              style={{width:"100%",padding:14,borderRadius:8,border:"none",background:"#69DB7C",color:"#111",fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}>
-              Salvar alteracoes
+              style={{width:"100%",padding:14,borderRadius:8,border:"none",background:K.ok,color:K.bg,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}>
+              Salvar alterações
             </button>
             <button onClick={async()=>{
-              if(!window.confirm("Excluir usuario "+selecionado.email+"? Esta acao nao pode ser desfeita."))return;
+              if(!window.confirm("Excluir o usuário "+selecionado.email+"? Esta ação não pode ser desfeita."))return;
               await sb.from("usuarios_controle").delete().eq("id",selecionado.id);
               setUsuarios(p=>p.filter(x=>x.id!==selecionado.id));
               setSelecionado(null);
-              alert("Usuario excluido!");
-            }} style={{width:"100%",padding:12,borderRadius:8,border:"1px solid #7B1010",background:"transparent",color:"#FF6B6B",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+              avisar("Usuário excluído.");
+            }} style={{width:"100%",padding:12,borderRadius:8,border:"1px solid "+K.err,background:"transparent",color:K.err,fontSize:13,fontWeight:700,cursor:"pointer"}}>
               Excluir cadastro
             </button>
           </div>
@@ -1409,50 +1606,53 @@ function App(){
   const sair=async()=>{await sb.auth.signOut();setSession(null);setTurnos([]);setAbast([]);setCfg(CFG0);setControle(null);setTelaAdmin(false);};
 
   const navItems=[
-    {id:"dashboard",icon:"🏠",label:"Dashboard"},
-    {id:"diario",icon:"📋",label:"Diario"},
-    {id:"combustivel",icon:"⛽",label:"Combust."},
-    {id:"comparativo",icon:"📊",label:"Comparar"},
-    {id:"historico",icon:"📁",label:"Historico"},
-    {id:"config",icon:"⚙",label:"Config."},
+    {id:"dashboard",icon:"inicio",label:"Início"},
+    {id:"diario",icon:"diario",label:"Diário"},
+    {id:"combustivel",icon:"bomba",label:"Combustível"},
+    {id:"comparativo",icon:"barras",label:"Comparar"},
+    {id:"historico",icon:"ciclos",label:"Ciclos"},
+    {id:"config",icon:"ajustes",label:"Ajustes"},
   ];
 
   if(loading)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,background:K.bg}}>
-      <div style={{fontSize:32,fontFamily:"Arial"}}>&#128663;</div>
+      <Icone nome="carro" tam={36} cor={K.muted}/>
       <p style={{color:K.muted,fontSize:14}}>Carregando...</p>
     </div>
   );
 
   if(!session)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
       <TelaAuth onLogado={()=>sb.auth.getSession().then(({data:{session}})=>{if(session)carregarDados(session.user.id);})}/>
     </div>
   );
 
   if(telaAdmin&&isAdmin)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:"#111",fontFamily:"Georgia,serif"}}>
-      <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #222",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:18,fontWeight:700,color:"#FFF",margin:0}}>Por km Admin</h1>
-        <button onClick={sair} style={{background:"none",border:"none",color:"#AAA",fontSize:12,cursor:"pointer"}}>Sair</button>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
+      <AvisosGlobais/>
+      <div style={{padding:"14px 16px 12px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h1 style={{fontSize:18,fontWeight:700,color:K.text,margin:0}}>Por km Admin</h1>
+        <button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button>
       </div>
       <TelaAdmin onSair={()=>setTelaAdmin(false)}/>
     </div>
   );
 
-  if(controle&&!controle.ativo&&!isAdmin)return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
-      <TelaAguardando onSair={sair}/>
+  const situacao=situacaoConta(controle,isAdmin);
+  if(situacao!=="liberada")return(
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
+      <TelaAguardando situacao={situacao} vencimento={controle?.vencimento} onSair={sair}/>
     </div>
   );
 
   return(
-    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg,fontFamily:"Georgia,serif"}}>
+    <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
+      <AvisosGlobais/>
       <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0,fontFamily:"Georgia,serif"}}>Por km <span style={{fontSize:10,color:K.muted,fontWeight:400}}>v1.5</span></h1>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.6</span></h1>
         <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:11,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
+          {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
           <button onClick={sair} style={{background:"none",border:"none",color:K.muted,fontSize:12,cursor:"pointer"}}>Sair</button>
         </div>
       </div>
@@ -1464,15 +1664,15 @@ function App(){
         {nav==="historico"&&<TelaHistorico turnos={turnos} abastecimentos={abast} cfg={cfg} custosCiclos={custosCiclos}/>}
         {nav==="config"&&<TelaConfig cfg={cfg} userId={session.user.id} onSalvo={c=>setCfg(c)} onSalvoCustos={cc=>setCustosCiclos(cc)}/>}
       </div>
-      <div style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
+      <nav style={{display:"flex",borderTop:"1px solid "+K.border,background:K.card,flexShrink:0,overflowX:"auto"}}>
         {navItems.map(n=>(
-          <button key={n.id} onClick={()=>setNav(n.id)}
-            style={{flex:1,minWidth:52,padding:"8px 2px 6px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:18,color:nav===n.id?K.text:K.muted}}>{n.icon}</span>
-            <span style={{fontSize:8,color:nav===n.id?K.text:K.muted,fontFamily:"Arial,sans-serif",fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
+          <button key={n.id} onClick={()=>setNav(n.id)} aria-current={nav===n.id?"page":undefined}
+            style={{flex:1,minWidth:58,minHeight:52,padding:"8px 2px 6px",background:"none",border:"none",borderTop:"2px solid "+(nav===n.id?K.text:"transparent"),cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+            <Icone nome={n.icon} tam={20} cor={nav===n.id?K.text:K.muted}/>
+            <span style={{fontSize:11,color:nav===n.id?K.text:K.muted,fontWeight:nav===n.id?700:400,whiteSpace:"nowrap"}}>{n.label}</span>
           </button>
         ))}
-      </div>
+      </nav>
     </div>
   );
 }
