@@ -624,8 +624,24 @@ const SeloMeta=({valor,meta,un})=>{
 
 // Fechar turno (v1.8): so os apps marcados em Ajustes, uma linha por app, bonus recolhido
 // e resumo fixo embaixo, junto do botao.
-function FormFecharTurno({turno,cfg,onSalvar,onCancelar,loading}){
-  const[km_f,setKmF]=useState(""),[h_f,setHF]=useState("");
+// Estimativa do KM final: KM inicial + media de km/h dos turnos fechados x horas desde a abertura.
+// O form so adianta os digitos da milhar (ex.: 77930 -> "77"); o motorista completa o resto.
+function estimarKmFinal(turno,turnos){
+  const fechados=turnos.filter(t=>t.id!==turno.id&&parseN(t.km_f)>parseN(t.km_i)&&horasDiff(t.h_i,t.h_f)>0);
+  const km=fechados.reduce((s,t)=>s+parseN(t.km_f)-parseN(t.km_i),0);
+  const hrs=fechados.reduce((s,t)=>s+horasDiff(t.h_i,t.h_f),0);
+  const kmh=hrs>0?km/hrs:0;
+  // horas desde a abertura, contando a data (turno aberto ontem a noite tambem funciona)
+  const ini=new Date(turno.data+"T"+(turno.h_i||"00:00")+":00");
+  const passadas=Math.min(24,Math.max(0,(Date.now()-ini.getTime())/3600000));
+  const estimado=parseN(turno.km_i)+kmh*passadas;
+  return{estimado,kmh,milhar:estimado>=1000?String(Math.floor(estimado/1000)):""};
+}
+
+function FormFecharTurno({turno,turnos,cfg,onSalvar,onCancelar,loading}){
+  const est=useMemo(()=>estimarKmFinal(turno,turnos||[]),[turno,turnos]);
+  // ja vem com a milhar estimada e a hora do celular; e so completar/ajustar
+  const[km_f,setKmF]=useState(est.milhar),[h_f,setHF]=useState(horaAgora);
   const[valores,setValores]=useState({uber:{bruto:"",viagens:"",bonus:""},"99":{bruto:"",viagens:"",bonus:""},part:{bruto:"",viagens:""}});
   const[visiveis,setVisiveis]=useState(()=>appsDoUsuario(cfg));
   const[comBonus,setComBonus]=useState(false);
@@ -652,9 +668,14 @@ function FormFecharTurno({turno,cfg,onSalvar,onCancelar,loading}){
         <p style={{fontSize:15,fontWeight:700,color:K.text}}>Fechar o {turno.num}º turno</p>
         <p style={{fontSize:13,color:K.muted,marginBottom:4}}>Começou {turno.data!==hoje()?"em "+dataFmt(turno.data)+" ":""}às {turno.h_i} · KM {fmt(parseN(turno.km_i),0)}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder={String(parseN(turno.km_i)+100)}/>
+          <Inp label="KM final" type="number" value={km_f} onChange={setKmF} placeholder={String(Math.round(est.estimado)||parseN(turno.km_i)+100)}/>
           <InpHora label="Hora fim" value={h_f} onChange={setHF}/>
         </div>
+        <p style={{fontSize:12,color:K.muted,marginTop:8,lineHeight:1.5}}>
+          {!est.milhar?"Hora fim = hora do celular. Ajuste se precisar."
+            :est.kmh>0?"Pela sua média ("+fmt(est.kmh,0)+" km/h) você deve estar perto de "+fmt(est.estimado,0)+" km: o KM final já vem com a milhar ("+est.milhar+"…), é só completar. Hora fim = hora do celular."
+            :"O KM final já vem com a milhar ("+est.milhar+"…), é só completar. Hora fim = hora do celular."}
+        </p>
         <p style={{fontSize:12,fontWeight:700,color:K.muted,textTransform:"uppercase",letterSpacing:1.2,margin:"18px 0 2px"}}>Quanto fez em cada app</p>
         {APPS_TODOS.filter(a=>visiveis.includes(a.id)).map(a=>(
           <div key={a.id} style={{display:"grid",gridTemplateColumns:"68px minmax(0,1fr) 84px",gap:8,alignItems:"end"}}>
@@ -929,7 +950,7 @@ function TelaDiario({turnos,abastecimentos,cfg,custosCiclos,userId,onAdd,onUpdat
           :<button onClick={()=>setModo(modo==="fechar"?null:"fechar")} style={{padding:"9px 16px",background:K.bg,color:K.text,border:"1px solid "+K.text,borderRadius:2,fontSize:13,fontWeight:600,cursor:"pointer"}}>Fechar turno</button>}
       </div>
       {modo==="abrir"&&!turnoAberto&&<FormAbrirTurno numTurno={turnosHoje.length+1} ultimoKm={ultimoKmRegistrado(turnos,abastecimentos)} onSalvar={abrirTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
-      {modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} cfg={cfg} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
+      {modo==="fechar"&&turnoAberto&&<FormFecharTurno turno={turnoAberto} turnos={turnos} cfg={cfg} onSalvar={fecharTurno} onCancelar={()=>setModo(null)} loading={loading}/>}
       {editando&&<FormTurnoEdit key={editando.id} turno={editando}
         onSalvar={salvarEd} onExcluir={()=>excluir(editando)} onCancelar={()=>setEditando(null)} loading={loading}/>}
       {turnosHoje.length===0&&!modo&&!editando&&(
