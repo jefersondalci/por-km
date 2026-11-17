@@ -1,5 +1,10 @@
 # Changelog — Por km
 
+## v1.8.2 — 2026-11-17
+
+### Novo
+- **Abrir turno já vem preenchido**: o KM inicial vem com o último KM registrado (do último turno ou abastecimento) e a hora vem com a do celular. É só conferir e ajustar se precisar.
+
 ## v1.8.1 — 2026-10-13
 
 ### Novo
