@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#F5F2EB" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)"/>
-<title>Por km v1.8.2</title>
+<title>Por km v1.8.3</title>
 <script>
 // tema escolhido na Config (auto/claro/escuro) aplicado antes de desenhar, sem piscar
 try{var t=localStorage.getItem("porkm_tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t);}catch(e){}
@@ -382,7 +382,7 @@ function TelaAuth({onLogado}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{width:64,height:64,background:K.card,border:"1px solid "+K.border,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}><Icone nome="carro" tam={36} cor={K.text}/></div>
         <h1 style={{fontSize:28,fontWeight:700,color:K.text,margin:0}}>Por km</h1>
-        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.8.2</p>
+        <p style={{color:K.muted,fontSize:12,margin:"2px 0 0"}}>v1.8.3</p>
         <p style={{color:K.muted,fontSize:13,margin:"6px 0 0"}}>Controle financeiro para motoristas</p>
       </div>
       {modo==="cadastro"&&<>
@@ -1969,7 +1969,7 @@ function App(){
     <div style={{maxWidth:480,margin:"0 auto",height:"100%",display:"flex",flexDirection:"column",background:K.bg}}>
       <AvisosGlobais/>
       <div style={{padding:"12px 16px 10px",borderBottom:"1px solid "+K.border,background:K.card,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.8.2</span></h1>
+        <h1 style={{fontSize:20,fontWeight:700,color:K.text,margin:0}}>Por km <span style={{fontSize:12,color:K.muted,fontWeight:400}}>v1.8.3</span></h1>
         <span style={{fontSize:12,color:K.muted}}>{navItems.find(n=>n.id===nav)?.label}</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {isAdmin&&<button onClick={()=>setTelaAdmin(true)} style={{fontSize:12,background:K.text,color:K.bg,border:"none",borderRadius:2,padding:"4px 8px",cursor:"pointer"}}>Admin</button>}
@@ -2007,8 +2007,25 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
 // app instalavel e que abre sem internet (ver sw.js)
 if("serviceWorker" in navigator&&location.protocol!=="file:"){
-  const registrar=()=>navigator.serviceWorker.register("sw.js").catch(()=>{});
+  // o celular costuma so "voltar" o app do segundo plano, sem recarregar: entao procura versao nova
+  // ao abrir e sempre que o app volta para a tela
+  const tinhaVersao=!!navigator.serviceWorker.controller;
+  const registrar=()=>navigator.serviceWorker.register("sw.js").then(reg=>{
+    const procurar=()=>reg.update().catch(()=>{});
+    procurar();
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")procurar();});
+  }).catch(()=>{});
   if(document.readyState==="complete")registrar();else window.addEventListener("load",registrar);
+  // versao nova assumiu: faixa para atualizar (sem recarregar sozinho, para nao perder o que esta sendo digitado)
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(!tinhaVersao||document.getElementById("faixa-versao"))return;
+    const b=document.createElement("button");
+    b.id="faixa-versao";
+    b.textContent="Nova versão do Por km · toque para atualizar";
+    b.style.cssText="position:fixed;left:12px;right:12px;bottom:76px;z-index:1000;padding:14px 16px;border:none;border-radius:2px;background:var(--ok);color:#fff;font:600 15px var(--fonte);box-shadow:0 4px 16px var(--sombra);cursor:pointer";
+    b.onclick=()=>location.reload();
+    document.body.appendChild(b);
+  });
 }
 </script>
 </body>
