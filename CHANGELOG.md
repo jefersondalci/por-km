@@ -1,5 +1,10 @@
 # Changelog — Por km
 
+## v1.8.3 — 2026-11-19
+
+### Corrigido
+- **Atualizações chegam ao celular**: o app procura versão nova sempre que volta para a tela (o celular costuma só "voltar" o app do segundo plano, sem recarregar) e, quando encontra, mostra a faixa "Nova versão do Por km · toque para atualizar". A página do app também deixou de poder ficar presa numa cópia antiga guardada no celular.
+
 ## v1.8.2 — 2026-11-17
 
 ### Novo

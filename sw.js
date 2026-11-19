@@ -2,7 +2,7 @@
 // - Pagina e icones: busca na rede primeiro (pega versao nova) e cai no cache se estiver sem sinal.
 // - Bibliotecas externas (versoes fixas): cache primeiro, nunca mudam.
 // - Supabase (dados e login): nunca passa pelo cache; offline o proprio app usa a copia local.
-const VERSAO = "porkm-v1.8.2"; // trocar a cada versao: limpa o cache antigo no celular
+const VERSAO = "porkm-v1.8.3"; // trocar a cada versao: limpa o cache antigo no celular
 const APP = ["./", "./index.html", "./manifest.webmanifest", "./icone.svg", "./icone-180.png", "./icone-192.png", "./icone-512.png"];
 const LIBS = [
   "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
@@ -12,7 +12,10 @@ const LIBS = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSAO).then((c) => c.addAll([...APP, ...LIBS])).then(() => self.skipWaiting()));
+  // paginas do app pedidas direto ao servidor (cache: "reload"), para nunca guardar uma copia velha
+  e.waitUntil(caches.open(VERSAO)
+    .then((c) => c.addAll([...APP.map((u) => new Request(u, { cache: "reload" })), ...LIBS]))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -35,7 +38,8 @@ self.addEventListener("fetch", (e) => {
   }
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(req)
+      // sempre a versao do servidor quando ha sinal (sem passar pelo cache do navegador)
+      fetch(new Request(req.url, { cache: "no-store" }))
         .then((resp) => {
           if (resp.ok) { const copia = resp.clone(); caches.open(VERSAO).then((c) => c.put(req, copia)); }
           return resp;
